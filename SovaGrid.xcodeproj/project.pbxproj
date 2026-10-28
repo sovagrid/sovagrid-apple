@@ -1,0 +1,165 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B00000000000000000000001 /* SovaGridApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000001 /* SovaGridApp.swift */; };
+		B00000000000000000000002 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* Models.swift */; };
+		B00000000000000000000003 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000003 /* KeychainStore.swift */; };
+		B00000000000000000000004 /* ServerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000004 /* ServerStore.swift */; };
+		B00000000000000000000005 /* SSHSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000005 /* SSHSession.swift */; };
+		B00000000000000000000006 /* TerminalBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000006 /* TerminalBridge.swift */; };
+		B00000000000000000000007 /* ServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000007 /* ServersView.swift */; };
+		B00000000000000000000008 /* HubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000008 /* HubStore.swift */; };
+		B00000000000000000000009 /* HubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000009 /* HubView.swift */; };
+		B0000000000000000000000F /* PanelTunnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000B /* PanelTunnel.swift */; };
+		B00000000000000000000010 /* PanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000C /* PanelView.swift */; };
+		B00000000000000000000011 /* ProfileExportPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000D /* ProfileExportPayload.swift */; };
+		B00000000000000000000012 /* TelegramExternalLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000E /* TelegramExternalLink.swift */; };
+		B00000000000000000000013 /* BootstrapPassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000F /* BootstrapPassword.swift */; };
+		B00000000000000000000014 /* SFTPWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000010 /* SFTPWire.swift */; };
+		B00000000000000000000015 /* SFTPTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000011 /* SFTPTransport.swift */; };
+		B00000000000000000000016 /* SFTPTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000012 /* SFTPTransfer.swift */; };
+		B00000000000000000000017 /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000013 /* FilesView.swift */; };
+		B00000000000000000000018 /* SFTPFileSaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000014 /* SFTPFileSaver.swift */; };
+		B00000000000000000000019 /* OpenSSHPrivateKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000015 /* OpenSSHPrivateKey.swift */; };
+		B0000000000000000000001A /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000016 /* AboutView.swift */; };
+		B0000000000000000000001B /* LegalResources in Resources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000017 /* LegalResources */; };
+		B0000000000000000000000A /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000001 /* NIOSSH */; };
+		B0000000000000000000000B /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000002 /* NIOCore */; };
+		B0000000000000000000000C /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000003 /* NIOPosix */; };
+		B0000000000000000000000D /* Crypto in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000004 /* Crypto */; };
+		B0000000000000000000000E /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000005 /* SwiftTerm */; };
+		F10000000000000000000001 /* SovaGridApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000001 /* SovaGridApp.swift */; };
+		F10000000000000000000002 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* Models.swift */; };
+		F10000000000000000000003 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000003 /* KeychainStore.swift */; };
+		F10000000000000000000004 /* ServerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000004 /* ServerStore.swift */; };
+		F10000000000000000000005 /* SSHSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000005 /* SSHSession.swift */; };
+		F10000000000000000000006 /* TerminalBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000006 /* TerminalBridge.swift */; };
+		F10000000000000000000007 /* ServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000007 /* ServersView.swift */; };
+		F10000000000000000000008 /* HubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000008 /* HubStore.swift */; };
+		F10000000000000000000009 /* HubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000009 /* HubView.swift */; };
+		F1000000000000000000000A /* PanelTunnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000B /* PanelTunnel.swift */; };
+		F1000000000000000000000B /* PanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000C /* PanelView.swift */; };
+		F1000000000000000000000C /* ProfileExportPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000D /* ProfileExportPayload.swift */; };
+		F1000000000000000000000D /* TelegramExternalLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000E /* TelegramExternalLink.swift */; };
+		F1000000000000000000000E /* BootstrapPassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000F /* BootstrapPassword.swift */; };
+		F1000000000000000000000F /* SFTPWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000010 /* SFTPWire.swift */; };
+		F10000000000000000000010 /* SFTPTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000011 /* SFTPTransport.swift */; };
+		F10000000000000000000011 /* SFTPTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000012 /* SFTPTransfer.swift */; };
+		F10000000000000000000012 /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000013 /* FilesView.swift */; };
+		F10000000000000000000013 /* SFTPFileSaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000014 /* SFTPFileSaver.swift */; };
+		F10000000000000000000014 /* OpenSSHPrivateKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000015 /* OpenSSHPrivateKey.swift */; };
+		F10000000000000000000015 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000016 /* AboutView.swift */; };
+		F10000000000000000000016 /* LegalResources in Resources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000017 /* LegalResources */; };
+		F20000000000000000000001 /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000001 /* NIOSSH */; };
+		F20000000000000000000002 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000002 /* NIOCore */; };
+		F20000000000000000000003 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000003 /* NIOPosix */; };
+		F20000000000000000000004 /* Crypto in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000004 /* Crypto */; };
+		F20000000000000000000005 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000005 /* SwiftTerm */; };
+		B0000000000000000000001C /* SSHKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000018 /* SSHKeyStore.swift */; };
+		F10000000000000000000017 /* SSHKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000018 /* SSHKeyStore.swift */; };
+		B0000000000000000000001D /* SSHKeysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000019 /* SSHKeysView.swift */; };
+		F10000000000000000000018 /* SSHKeysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000019 /* SSHKeysView.swift */; };
+		B0000000000000000000001E /* ServerDeployment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000001A /* ServerDeployment.swift */; };
+		F10000000000000000000019 /* ServerDeployment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000001A /* ServerDeployment.swift */; };
+		B0000000000000000000001F /* ServerBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000001B /* ServerBootstrap.swift */; };
+		F1000000000000000000001A /* ServerBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000000000000000000001B /* ServerBootstrap.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C00000000000000000000001 /* SovaGridApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SovaGridApp.swift; sourceTree = "<group>"; };
+		C00000000000000000000002 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		C00000000000000000000003 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		C00000000000000000000004 /* ServerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStore.swift; sourceTree = "<group>"; };
+		C00000000000000000000005 /* SSHSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSession.swift; sourceTree = "<group>"; };
+		C00000000000000000000006 /* TerminalBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalBridge.swift; sourceTree = "<group>"; };
+		C00000000000000000000007 /* ServersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServersView.swift; sourceTree = "<group>"; };
+		C00000000000000000000008 /* HubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HubStore.swift; sourceTree = "<group>"; };
+		C00000000000000000000009 /* HubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HubView.swift; sourceTree = "<group>"; };
+		C0000000000000000000000B /* PanelTunnel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelTunnel.swift; sourceTree = "<group>"; };
+		C0000000000000000000000C /* PanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelView.swift; sourceTree = "<group>"; };
+		C0000000000000000000000D /* ProfileExportPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileExportPayload.swift; sourceTree = "<group>"; };
+		C0000000000000000000000E /* TelegramExternalLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelegramExternalLink.swift; sourceTree = "<group>"; };
+		C0000000000000000000000F /* BootstrapPassword.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BootstrapPassword.swift; sourceTree = "<group>"; };
+		C00000000000000000000010 /* SFTPWire.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFTPWire.swift; sourceTree = "<group>"; };
+		C00000000000000000000011 /* SFTPTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFTPTransport.swift; sourceTree = "<group>"; };
+		C00000000000000000000012 /* SFTPTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFTPTransfer.swift; sourceTree = "<group>"; };
+		C00000000000000000000013 /* FilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesView.swift; sourceTree = "<group>"; };
+		C00000000000000000000014 /* SFTPFileSaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFTPFileSaver.swift; sourceTree = "<group>"; };
+		C00000000000000000000015 /* OpenSSHPrivateKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenSSHPrivateKey.swift; sourceTree = "<group>"; };
+		C00000000000000000000016 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		C00000000000000000000017 /* LegalResources */ = {isa = PBXFileReference; lastKnownFileType = folder; path = LegalResources; sourceTree = "<group>"; };
+		C0000000000000000000000A /* SovaGrid.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SovaGrid.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F00000000000000000000008 /* SovaGridMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SovaGridMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C00000000000000000000018 /* SSHKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyStore.swift; sourceTree = "<group>"; };
+		C00000000000000000000019 /* SSHKeysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeysView.swift; sourceTree = "<group>"; };
+		C0000000000000000000001A /* ServerDeployment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerDeployment.swift; sourceTree = "<group>"; };
+		C0000000000000000000001B /* ServerBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerBootstrap.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000007 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (B0000000000000000000000A, B0000000000000000000000B, B0000000000000000000000C, B0000000000000000000000D, B0000000000000000000000E); runOnlyForDeploymentPostprocessing = 0; };
+		F00000000000000000000003 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (F20000000000000000000001, F20000000000000000000002, F20000000000000000000003, F20000000000000000000004, F20000000000000000000005); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000002 = {isa = PBXGroup; children = (A00000000000000000000003, A00000000000000000000004); sourceTree = "<group>"; };
+		A00000000000000000000003 /* SovaGrid */ = {isa = PBXGroup; children = (C00000000000000000000001, C00000000000000000000002, C00000000000000000000003, C00000000000000000000004, C00000000000000000000005, C00000000000000000000006, C00000000000000000000007, C00000000000000000000008, C00000000000000000000009, C0000000000000000000000B, C0000000000000000000000C, C0000000000000000000000D, C0000000000000000000000E, C0000000000000000000000F, C00000000000000000000010, C00000000000000000000011, C00000000000000000000012, C00000000000000000000013, C00000000000000000000014, C00000000000000000000015, C00000000000000000000016, C00000000000000000000017, C00000000000000000000018, C00000000000000000000019, C0000000000000000000001A, C0000000000000000000001B); path = SovaGrid; sourceTree = "<group>"; };
+		A00000000000000000000004 /* Products */ = {isa = PBXGroup; children = (C0000000000000000000000A, F00000000000000000000008 /* SovaGridMac.app */); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000005 /* SovaGrid */ = {isa = PBXNativeTarget; buildConfigurationList = A0000000000000000000000B; buildPhases = (A00000000000000000000006, A00000000000000000000007, A00000000000000000000008); buildRules = (); dependencies = (); name = SovaGrid; packageProductDependencies = (E00000000000000000000001, E00000000000000000000002, E00000000000000000000003, E00000000000000000000004, E00000000000000000000005); productName = SovaGrid; productReference = C0000000000000000000000A; productType = "com.apple.product-type.application"; };
+		F00000000000000000000001 /* SovaGridMac */ = {isa = PBXNativeTarget; buildConfigurationList = F00000000000000000000005; buildPhases = (F00000000000000000000002, F00000000000000000000003, F00000000000000000000004); buildRules = (); dependencies = (); name = SovaGridMac; packageProductDependencies = (E00000000000000000000001, E00000000000000000000002, E00000000000000000000003, E00000000000000000000004, E00000000000000000000005); productName = SovaGridMac; productReference = F00000000000000000000008; productType = "com.apple.product-type.application"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {LastUpgradeCheck = 2710; TargetAttributes = {A00000000000000000000005 = {ProvisioningStyle = Automatic; }; F00000000000000000000001 = {ProvisioningStyle = Automatic; }; }; }; buildConfigurationList = A0000000000000000000000A; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en); mainGroup = A00000000000000000000002; packageReferences = (D00000000000000000000001, D00000000000000000000002, D00000000000000000000003, D00000000000000000000004); productRefGroup = A00000000000000000000004; projectDirPath = ""; projectRoot = ""; targets = (A00000000000000000000005, F00000000000000000000001); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000008 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B0000000000000000000001B); runOnlyForDeploymentPostprocessing = 0; };
+		F00000000000000000000004 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (F10000000000000000000016); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000006 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B00000000000000000000001, B00000000000000000000002, B00000000000000000000003, B00000000000000000000004, B00000000000000000000005, B00000000000000000000006, B00000000000000000000007, B00000000000000000000008, B00000000000000000000009, B0000000000000000000000F, B00000000000000000000010, B00000000000000000000011, B00000000000000000000012, B00000000000000000000013, B00000000000000000000014, B00000000000000000000015, B00000000000000000000016, B00000000000000000000017, B00000000000000000000018, B00000000000000000000019, B0000000000000000000001A, B0000000000000000000001C, B0000000000000000000001D, B0000000000000000000001E, B0000000000000000000001F); runOnlyForDeploymentPostprocessing = 0; };
+		F00000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F10000000000000000000001, F10000000000000000000002, F10000000000000000000003, F10000000000000000000004, F10000000000000000000005, F10000000000000000000006, F10000000000000000000007, F10000000000000000000008, F10000000000000000000009, F1000000000000000000000A, F1000000000000000000000B, F1000000000000000000000C, F1000000000000000000000D, F1000000000000000000000E, F1000000000000000000000F, F10000000000000000000010, F10000000000000000000011, F10000000000000000000012, F10000000000000000000013, F10000000000000000000014, F10000000000000000000015, F10000000000000000000017, F10000000000000000000018, F10000000000000000000019, F1000000000000000000001A); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A0000000000000000000000C /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; GCC_OPTIMIZATION_LEVEL = 0; GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)"); ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		A0000000000000000000000D /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; }; name = Release; };
+		A0000000000000000000000E /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 13; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = SovaGrid; INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Подключение к вашим SSH-серверам в локальной сети"; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.6.0; PRODUCT_BUNDLE_IDENTIFIER = com.sovagrid.app; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_STRICT_CONCURRENCY = minimal; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		A0000000000000000000000F /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 13; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = SovaGrid; INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Подключение к вашим SSH-серверам в локальной сети"; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.6.0; PRODUCT_BUNDLE_IDENTIFIER = com.sovagrid.app; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_STRICT_CONCURRENCY = minimal; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		F00000000000000000000006 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 13; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = SovaGrid; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.6.0; PRODUCT_BUNDLE_IDENTIFIER = com.sovagrid.mac; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SUPPORTED_PLATFORMS = macosx; SWIFT_STRICT_CONCURRENCY = minimal; SWIFT_VERSION = 5.0;}; name = Debug; };
+		F00000000000000000000007 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 13; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = SovaGrid; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.6.0; PRODUCT_BUNDLE_IDENTIFIER = com.sovagrid.mac; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SUPPORTED_PLATFORMS = macosx; SWIFT_STRICT_CONCURRENCY = minimal; SWIFT_VERSION = 5.0;}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A0000000000000000000000A /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (A0000000000000000000000C, A0000000000000000000000D); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A0000000000000000000000B /* Build configuration list for PBXNativeTarget */ = {isa = XCConfigurationList; buildConfigurations = (A0000000000000000000000E, A0000000000000000000000F); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		F00000000000000000000005 /* Build configuration list for SovaGridMac */ = {isa = XCConfigurationList; buildConfigurations = (F00000000000000000000006, F00000000000000000000007); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D00000000000000000000001 /* swift-nio-ssh */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/apple/swift-nio-ssh.git"; requirement = {kind = exactVersion; version = 0.13.0; }; };
+		D00000000000000000000002 /* swift-nio */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/apple/swift-nio.git"; requirement = {kind = upToNextMajorVersion; minimumVersion = 2.81.0; }; };
+		D00000000000000000000003 /* swift-crypto */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/apple/swift-crypto.git"; requirement = {kind = upToNextMajorVersion; minimumVersion = 3.0.0; }; };
+		D00000000000000000000004 /* SwiftTerm */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git"; requirement = {kind = exactVersion; version = 1.11.2; }; };
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E00000000000000000000001 /* NIOSSH */ = {isa = XCSwiftPackageProductDependency; package = D00000000000000000000001; productName = NIOSSH; };
+		E00000000000000000000002 /* NIOCore */ = {isa = XCSwiftPackageProductDependency; package = D00000000000000000000002; productName = NIOCore; };
+		E00000000000000000000003 /* NIOPosix */ = {isa = XCSwiftPackageProductDependency; package = D00000000000000000000002; productName = NIOPosix; };
+		E00000000000000000000004 /* Crypto */ = {isa = XCSwiftPackageProductDependency; package = D00000000000000000000003; productName = Crypto; };
+		E00000000000000000000005 /* SwiftTerm */ = {isa = XCSwiftPackageProductDependency; package = D00000000000000000000004; productName = SwiftTerm; };
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A00000000000000000000001 /* Project object */;
+}

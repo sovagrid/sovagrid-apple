@@ -1,0 +1,78 @@
+name: Apple first install on GitHub-hosted Ubuntu
+
+# Root installation is exercised only on a disposable GitHub-hosted VM after
+# push or explicit dispatch. Pull requests receive the ordinary build checks.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'SovaGrid/ServerBootstrap.swift'
+      - 'tests/ExportFirstInstallCommands.swift'
+      - 'ci/verify_first_install.py'
+      - '.github/workflows/first-install-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-first-install-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export:
+    runs-on: xcode-27
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm the tested installer is the reviewed 0.10.0 source
+        run: test "$(git hash-object SovaGrid/ServerBootstrap.swift)" = 7c99ab8a6077e3da5f173afff3e014cbf75dc98e
+      - name: Compile and export exact Apple SSH commands
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/sovagrid-apple-ci/module-cache"
+          swiftc -module-cache-path "$RUNNER_TEMP/sovagrid-apple-ci/module-cache" \
+            SovaGrid/ServerBootstrap.swift tests/ServerBootstrapTests.swift \
+            -o "$RUNNER_TEMP/sovagrid-apple-ci/parser-tests"
+          "$RUNNER_TEMP/sovagrid-apple-ci/parser-tests"
+          swiftc -module-cache-path "$RUNNER_TEMP/sovagrid-apple-ci/module-cache" \
+            SovaGrid/ServerBootstrap.swift tests/ExportFirstInstallCommands.swift \
+            -o "$RUNNER_TEMP/sovagrid-apple-ci/export"
+          "$RUNNER_TEMP/sovagrid-apple-ci/export" "$RUNNER_TEMP/sovagrid-apple-ci/commands"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple-first-install-commands
+          path: ${{ runner.temp }}/sovagrid-apple-ci/commands/*.command
+          if-no-files-found: error
+          retention-days: 1
+
+  install:
+    needs: export
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: apple-first-install-commands
+          path: ${{ runner.temp }}/sovagrid-apple-install-commands
+      - name: Prepare disposable Ubuntu VM
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$RUNNER_OS" = Linux
+          test -d /opt && test ! -L /opt
+          # Match a fresh Ubuntu server without relaxing run.sh's checks.
+          sudo -n install -d -o root -g root -m 0755 /opt
+          test "$(stat -c '%u:%a' /opt)" = 0:755
+          sudo -n systemctl --version >/dev/null
+          sudo -n systemd-run --version >/dev/null
+          sudo -n systemctl start docker
+          sudo -n docker info >/dev/null
+          echo "SOVAGRID_CI_INSTALL_COMMAND_DIR=$RUNNER_TEMP/sovagrid-apple-install-commands" >> "$GITHUB_ENV"
+      - name: Install pinned bundle and verify Hub and Agent
+        run: python3 ci/verify_first_install.py

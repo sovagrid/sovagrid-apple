@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Jigokuraku01
+# Additional author attribution terms: see ATTRIBUTION.md.
+name: Apple
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Swift Collections 1.7.4 uses Swift tools 6.4. GitHub's documented
+    # Xcode 27 image: https://github.com/actions/runner-images/issues/14404
+    runs-on: xcode-27
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scheme: SovaGrid
+            destination: generic/platform=iOS Simulator
+            product: Debug-iphonesimulator/SovaGrid.app
+          - scheme: SovaGridMac
+            destination: generic/platform=macOS
+            product: Debug/SovaGridMac.app
+    steps:
+      - uses: actions/checkout@v6
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Check pinned legal resources
+        run: python3 tests/verify_legal_resources.py
+      - name: Build pinned sources
+        run: >-
+          xcodebuild -project SovaGrid.xcodeproj
+          -scheme '${{ matrix.scheme }}'
+          -configuration Debug
+          -destination '${{ matrix.destination }}'
+          -derivedDataPath build
+          -onlyUsePackageVersionsFromResolvedFile
+          CODE_SIGNING_ALLOWED=NO build
+      - name: Verify built app legal resources
+        run: python3 tests/verify_legal_resources.py 'build/Build/Products/${{ matrix.product }}'

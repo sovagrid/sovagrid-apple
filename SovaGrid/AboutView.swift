@@ -32,6 +32,9 @@ struct AboutView: View {
         LegalDocument(title: "Уведомление об авторстве", path: "NOTICE")
     ]
     private let packages = [
+        LegalPackage(name: "OpenSSH portable bcrypt/Blowfish", folder: "openssh-portable",
+                     license: "LICENSE-bcrypt_pbkdf.c.txt",
+                     extras: ["LICENSE-blowfish.c.txt", "LICENSE-blf.h.txt"]),
         LegalPackage(name: "SwiftTerm 1.11.2", folder: "swiftterm-1.11.2", license: "LICENSE", extras: []),
         LegalPackage(name: "SwiftNIO SSH 0.13.0", folder: "swift-nio-ssh-0.13.0", license: "LICENSE.txt", extras: []),
         LegalPackage(name: "SwiftNIO 2.104.0", folder: "swift-nio-2.104.0", license: "LICENSE.txt",

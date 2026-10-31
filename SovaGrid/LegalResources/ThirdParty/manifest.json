@@ -125,5 +125,40 @@
         }
       ]
     }
+  ],
+  "vendored": [
+    {
+      "name": "openssh-portable",
+      "revision": "1fbdcb402516aacce59b4cc7b7d98f06820a1e44",
+      "source": "https://github.com/openssh/openssh-portable",
+      "source_files": [
+        {
+          "path": "SovaGrid/OpenSSHKeyCrypto/bcrypt_pbkdf.c",
+          "sha256": "37eb9b8c19d1090a144fcd601360038a56d5379a8f51d0f7d091d74a727a5e4c"
+        },
+        {
+          "path": "SovaGrid/OpenSSHKeyCrypto/blowfish.c",
+          "sha256": "c1ce17befab237bb2e360dd0cf58f0123f27ac4d2458b8db4cc27775c9db403c"
+        },
+        {
+          "path": "SovaGrid/OpenSSHKeyCrypto/blf.h",
+          "sha256": "8c110caed5a31a330c8f60d942e9a4fbf42860ec575484c5ad509379d09379f6"
+        }
+      ],
+      "files": [
+        {
+          "path": "ThirdParty/openssh-portable/LICENSE-bcrypt_pbkdf.c.txt",
+          "sha256": "0fea2959aa1e1f53e1271d4596b5c4e698023ac53ea3f9b8213656603ab152a2"
+        },
+        {
+          "path": "ThirdParty/openssh-portable/LICENSE-blowfish.c.txt",
+          "sha256": "6e2d64cdcb8ebc5faf5d86940d7e892ad67be7274d688b90b2d5fd1f96c1da05"
+        },
+        {
+          "path": "ThirdParty/openssh-portable/LICENSE-blf.h.txt",
+          "sha256": "c488316d678402f4823240bbff7eda8651c7b8522306e51c856f7f4814107c80"
+        }
+      ]
+    }
   ]
 }

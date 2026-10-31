@@ -17,3 +17,15 @@ The offline About screen includes the unmodified license and NOTICE files for th
 License files and SHA-256 digests: [`SovaGrid/LegalResources/ThirdParty/manifest.json`](SovaGrid/LegalResources/ThirdParty/manifest.json). SwiftTerm uses MIT; the listed Swift packages use Apache 2.0. Retain each supplied NOTICE file.
 
 This list conservatively includes all resolved packages. Swift Argument Parser is a dependency of SwiftTerm’s separate Termcast executable and is not linked into this application. SwiftNIO’s optional llhttp license is retained even though the SSH client does not link CNIOLLHTTP. Swift Crypto uses Apple CryptoKit on Darwin; its non-Darwin BoringSSL target is not linked into these builds.
+
+## Vendored OpenSSH code
+
+The app also compiles `openbsd-compat/bcrypt_pbkdf.c`, `blowfish.c` and
+`blf.h` copied unchanged from [OpenSSH portable revision
+1fbdcb402516](https://github.com/openssh/openssh-portable/tree/1fbdcb402516aacce59b4cc7b7d98f06820a1e44/openbsd-compat).
+`bcrypt_pbkdf.c` carries Ted Unangst's ISC-style permission and copyright
+notice. `blowfish.c` and `blf.h` carry Niels Provos's BSD-style copyright,
+redistribution conditions and disclaimer. Their original notice headers
+remain in the source and separate copies are available offline from the app's
+About screen and in `SovaGrid/LegalResources/ThirdParty/openssh-portable/`.
+The manifest records SHA-256 digests of the vendored source and those notices.

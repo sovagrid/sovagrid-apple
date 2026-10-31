@@ -38,6 +38,20 @@ def verify():
             assert relative.parts[:1] == ("ThirdParty",) and ".." not in relative.parts
             assert digest(RESOURCES / relative) == item["sha256"], relative
             expected.add(relative)
+    vendored = manifest.get("vendored", [])
+    assert len({item["name"] for item in vendored}) == len(vendored)
+    for vendor in vendored:
+        assert vendor["source_files"] and vendor["files"], vendor["name"]
+        for item in vendor["source_files"]:
+            relative = Path(item["path"])
+            assert relative.parts[:2] == ("SovaGrid", "OpenSSHKeyCrypto")
+            assert ".." not in relative.parts
+            assert digest(ROOT / relative) == item["sha256"], relative
+        for item in vendor["files"]:
+            relative = Path(item["path"])
+            assert relative.parts[:1] == ("ThirdParty",) and ".." not in relative.parts
+            assert digest(RESOURCES / relative) == item["sha256"], relative
+            expected.add(relative)
     actual = {path.relative_to(RESOURCES) for path in (RESOURCES / "ThirdParty").rglob("*")
               if path.is_file() and path.name != "manifest.json"}
     assert expected == actual, "Unindexed or missing dependency notice"
@@ -56,7 +70,8 @@ def verify():
                           for path in destination.rglob("*") if path.is_file()}
         assert source_files == packaged_files, f"Incomplete or stale notices in {app}"
         print(f"PASS exact offline legal resources: {app.name}")
-    print(f"PASS {len(packages)} pinned packages, {len(expected)} exact dependency notice files")
+    print(f"PASS {len(packages)} pinned packages, {len(vendored)} vendored source, "
+          f"{len(expected)} exact notice files")
 
 
 if __name__ == "__main__":

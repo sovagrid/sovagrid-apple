@@ -28,8 +28,28 @@ struct OpenSSHPrivateKeyTests {
         try generateKey(at: encrypted, passphrase: "test-passphrase")
         do {
             _ = try OpenSSHPrivateKey.importSeed(from: encrypted)
-            preconditionFailure("Encrypted OpenSSH key should be rejected explicitly")
-        } catch OpenSSHPrivateKeyError.unsupportedEncryption {}
+            preconditionFailure("Encrypted key should require its passphrase")
+        } catch OpenSSHPrivateKeyError.missingPassphrase {}
+        let encryptedSeed = try OpenSSHPrivateKey.importSeed(from: encrypted, passphrase: "test-passphrase")
+        precondition(encryptedSeed.count == 32)
+        let encryptedPublic = try String(contentsOf: encrypted.appendingPathExtension("pub"), encoding: .utf8)
+        let encryptedBlob = Data(base64Encoded: String(encryptedPublic.split(separator: " ")[1]))!
+        let encryptedKey = try Curve25519.Signing.PrivateKey(rawRepresentation: encryptedSeed)
+        precondition(encryptedBlob.suffix(32) == encryptedKey.publicKey.rawRepresentation)
+        do {
+            _ = try OpenSSHPrivateKey.importSeed(from: encrypted, passphrase: "wrong-passphrase")
+            preconditionFailure("Wrong passphrase should be rejected")
+        } catch OpenSSHPrivateKeyError.wrongPassphrase {}
+        let encryptedPEM = try Data(contentsOf: encrypted)
+        let encodedLines = String(data: encryptedPEM, encoding: .utf8)!.split(whereSeparator: \.isNewline)
+        var encryptedWire = Data(base64Encoded: encodedLines.dropFirst().dropLast().joined())!
+        encryptedWire[encryptedWire.count - 1] ^= 1
+        let damagedPEM = Data(("-----BEGIN OPENSSH PRIVATE KEY-----\n"
+            + encryptedWire.base64EncodedString() + "\n-----END OPENSSH PRIVATE KEY-----\n").utf8)
+        do {
+            _ = try OpenSSHPrivateKey.parse(damagedPEM, passphrase: "test-passphrase")
+            preconditionFailure("Damaged encrypted key should be rejected")
+        } catch is OpenSSHPrivateKeyError {}
 
         var broken = try Data(contentsOf: plain)
         broken[broken.count / 2] = 0
@@ -47,7 +67,7 @@ struct OpenSSHPrivateKeyTests {
             _ = try OpenSSHPrivateKey.importSeed(from: URL(fileURLWithPath: CommandLine.arguments[1]))
             print("Existing OpenSSH Ed25519 key accepted without displaying key material.")
         }
-        print("OpenSSH Ed25519 import: generated key, public key match, encrypted/malformed/oversized and 11 wire validation cases passed.")
+        print("OpenSSH Ed25519 import: plain and encrypted keys, public key match, missing/wrong passphrase, tampering, size and 11 wire cases passed.")
     }
 
     static func verifyWireValidation(_ seed: Data) throws {

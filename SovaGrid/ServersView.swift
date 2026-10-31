@@ -80,10 +80,12 @@ struct AddServerView: View {
     @State private var jumpAuth: SSHAuthKind = .password
     @State private var jumpPassword = ""
     @State private var targetImportedKey: Data?
+    @State private var targetKeyPassphrase = ""
     @State private var targetKeySource: KeySource = .generated
     @State private var targetSavedKeyID: UUID?
     @State private var targetKeyName = ""
     @State private var jumpImportedKey: Data?
+    @State private var jumpKeyPassphrase = ""
     @State private var jumpKeySource: KeySource = .generated
     @State private var jumpSavedKeyID: UUID?
     @State private var jumpKeyName = ""
@@ -125,7 +127,10 @@ struct AddServerView: View {
                             NavigationLink("Создать SSH-ключ") { SSHKeysView() }
                         }
                         if targetKeySource == .imported {
+                            SecureField("Парольная фраза ключа, если есть", text: $targetKeyPassphrase)
                             Button("Выбрать приватный ключ OpenSSH") {
+                                targetImportedKey = nil
+                                targetKeyName = ""
                                 importingJumpKey = false
                                 importingKey = true
                             }
@@ -139,7 +144,7 @@ struct AddServerView: View {
                             Text("Сначала создайте ключ. Его открытую часть можно будет скопировать и добавить на сервер до сохранения профиля.")
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else if targetKeySource == .imported {
-                            Text("Выберите существующий ключ OpenSSH Ed25519 без парольной фразы. Его открытый ключ должен быть уже разрешён на сервере.")
+                            Text("Если ключ зашифрован, сначала введите его парольную фразу. Она нужна только при импорте и не сохраняется. Открытый ключ должен быть разрешён на сервере.")
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                     }
@@ -174,7 +179,10 @@ struct AddServerView: View {
                                 NavigationLink("Создать SSH-ключ перехода") { SSHKeysView() }
                             }
                             if jumpKeySource == .imported {
+                                SecureField("Парольная фраза ключа перехода, если есть", text: $jumpKeyPassphrase)
                                 Button("Выбрать ключ промежуточного сервера") {
+                                    jumpImportedKey = nil
+                                    jumpKeyName = ""
                                     importingJumpKey = true
                                     importingKey = true
                                 }
@@ -188,7 +196,7 @@ struct AddServerView: View {
                                 Text("Сначала создайте ключ перехода. Его открытую часть можно будет добавить на промежуточный сервер до сохранения профиля.")
                                     .font(.footnote).foregroundStyle(.secondary)
                             } else if jumpKeySource == .imported {
-                                Text("Выберите ключ OpenSSH Ed25519 без парольной фразы, разрешённый на промежуточном сервере.")
+                                Text("Если ключ перехода зашифрован, сначала введите его парольную фразу. Она не сохраняется.")
                                     .font(.footnote).foregroundStyle(.secondary)
                             }
                         }
@@ -203,11 +211,16 @@ struct AddServerView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save() } }
             }
             .fileImporter(isPresented: $importingKey, allowedContentTypes: [.item]) { result in
+                let forJump = importingJumpKey
+                let passphrase = forJump ? jumpKeyPassphrase : targetKeyPassphrase
+                defer {
+                    if forJump { jumpKeyPassphrase = "" } else { targetKeyPassphrase = "" }
+                }
                 switch result {
                 case .success(let url):
                     do {
-                        let seed = try OpenSSHPrivateKey.importSeed(from: url)
-                        if importingJumpKey {
+                        let seed = try OpenSSHPrivateKey.importSeed(from: url, passphrase: passphrase)
+                        if forJump {
                             jumpImportedKey = seed
                             jumpKeyName = url.lastPathComponent
                         } else {
@@ -230,11 +243,24 @@ struct AddServerView: View {
                 clearSecrets()
             }
         }
+        .onDisappear {
+            targetKeyPassphrase = ""
+            jumpKeyPassphrase = ""
+        }
+        .onChange(of: auth) { _, kind in
+            if kind != .ed25519 { targetKeyPassphrase = "" }
+        }
+        .onChange(of: jumpAuth) { _, kind in
+            if kind != .ed25519 { jumpKeyPassphrase = "" }
+        }
+        .onChange(of: viaJump) { _, enabled in
+            if !enabled { jumpKeyPassphrase = "" }
+        }
         .onChange(of: targetKeySource) { _, source in
-            if source != .imported { targetImportedKey = nil; targetKeyName = "" }
+            if source != .imported { targetImportedKey = nil; targetKeyName = ""; targetKeyPassphrase = "" }
         }
         .onChange(of: jumpKeySource) { _, source in
-            if source != .imported { jumpImportedKey = nil; jumpKeyName = "" }
+            if source != .imported { jumpImportedKey = nil; jumpKeyName = ""; jumpKeyPassphrase = "" }
         }
     }
 
@@ -305,6 +331,8 @@ struct AddServerView: View {
     private func clearSecrets() {
         password = ""
         jumpPassword = ""
+        targetKeyPassphrase = ""
+        jumpKeyPassphrase = ""
         targetImportedKey = nil
         jumpImportedKey = nil
         targetKeyName = ""

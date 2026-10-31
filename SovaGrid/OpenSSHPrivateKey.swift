@@ -8,6 +8,8 @@ import Foundation
 enum OpenSSHPrivateKeyError: LocalizedError {
     case tooLarge
     case invalid
+    case missingPassphrase
+    case wrongPassphrase
     case unsupportedEncryption
     case unsupportedKeyType
 
@@ -15,8 +17,10 @@ enum OpenSSHPrivateKeyError: LocalizedError {
         switch self {
         case .tooLarge: return "Файл SSH-ключа превышает допустимые 64 КиБ."
         case .invalid: return "Файл не является корректным приватным ключом OpenSSH Ed25519."
+        case .missingPassphrase: return "Сначала введите парольную фразу зашифрованного SSH-ключа и выберите файл снова."
+        case .wrongPassphrase: return "Парольная фраза неверна или зашифрованный SSH-ключ повреждён."
         case .unsupportedEncryption:
-            return "Ключ с парольной фразой пока не поддерживается. Выберите другой ключ или вход по SSH-паролю."
+            return "Поддерживается OpenSSH Ed25519 без шифрования или с aes256-ctr и bcrypt (до 256 раундов)."
         case .unsupportedKeyType: return "Сейчас можно импортировать только приватный ключ OpenSSH Ed25519."
         }
     }
@@ -27,7 +31,7 @@ enum OpenSSHPrivateKeyError: LocalizedError {
 enum OpenSSHPrivateKey {
     static let maximumFileBytes = 64 * 1024
 
-    static func importSeed(from url: URL) throws -> Data {
+    static func importSeed(from url: URL, passphrase: String? = nil) throws -> Data {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let file = try FileHandle(forReadingFrom: url)
@@ -39,10 +43,10 @@ enum OpenSSHPrivateKey {
             content.append(next)
         }
         guard content.count <= maximumFileBytes else { throw OpenSSHPrivateKeyError.tooLarge }
-        return try parse(content)
+        return try parse(content, passphrase: passphrase)
     }
 
-    static func parse(_ pem: Data) throws -> Data {
+    static func parse(_ pem: Data, passphrase: String? = nil) throws -> Data {
         guard pem.count <= maximumFileBytes else { throw OpenSSHPrivateKeyError.tooLarge }
         guard let text = String(data: pem, encoding: .utf8) else { throw OpenSSHPrivateKeyError.invalid }
         let lines = text.split(whereSeparator: \.isNewline).map(String.init)
@@ -61,7 +65,8 @@ enum OpenSSHPrivateKey {
         let cipher = try reader.string(maximum: 64)
         let kdf = try reader.string(maximum: 64)
         let options = try reader.string(maximum: 4_096)
-        guard cipher == Data("none".utf8), kdf == Data("none".utf8), options.isEmpty else {
+        let encrypted = cipher == Data("aes256-ctr".utf8) && kdf == Data("bcrypt".utf8)
+        guard encrypted || (cipher == Data("none".utf8) && kdf == Data("none".utf8) && options.isEmpty) else {
             throw OpenSSHPrivateKeyError.unsupportedEncryption
         }
         guard try reader.u32() == 1 else { throw OpenSSHPrivateKeyError.unsupportedKeyType }
@@ -75,13 +80,45 @@ enum OpenSSHPrivateKey {
             throw OpenSSHPrivateKeyError.invalid
         }
         let privateBlob = try reader.string(maximum: 512)
-        guard reader.remaining == 0, !privateBlob.isEmpty, privateBlob.count % 8 == 0 else {
+        let blockSize = encrypted ? 16 : 8
+        guard reader.remaining == 0, !privateBlob.isEmpty, privateBlob.count % blockSize == 0 else {
             throw OpenSSHPrivateKeyError.invalid
         }
-        var privateReader = Reader(privateBlob)
+        let plaintext: Data
+        if encrypted {
+            guard let passphrase, !passphrase.isEmpty else { throw OpenSSHPrivateKeyError.missingPassphrase }
+            var kdfOptions = Reader(options)
+            let salt = try kdfOptions.string(maximum: 64)
+            let rounds = try kdfOptions.u32()
+            guard kdfOptions.remaining == 0, (16...64).contains(salt.count), (1...256).contains(rounds),
+                  passphrase.utf8.count <= 1024 else { throw OpenSSHPrivateKeyError.unsupportedEncryption }
+            var phrase = Data(passphrase.utf8)
+            defer { phrase.resetBytes(in: 0..<phrase.count) }
+            var decrypted = Data(count: privateBlob.count)
+            let result = phrase.withUnsafeBytes { phraseBytes in
+                salt.withUnsafeBytes { saltBytes in
+                    privateBlob.withUnsafeBytes { encryptedBytes in
+                        decrypted.withUnsafeMutableBytes { outputBytes in
+                            SovaGridDecryptOpenSSHAES256CTR(
+                                encryptedBytes.bindMemory(to: UInt8.self).baseAddress, privateBlob.count,
+                                saltBytes.bindMemory(to: UInt8.self).baseAddress, salt.count,
+                                rounds, phraseBytes.bindMemory(to: UInt8.self).baseAddress,
+                                phrase.count, outputBytes.bindMemory(to: UInt8.self).baseAddress)
+                        }
+                    }
+                }
+            }
+            guard result == 0 else { throw OpenSSHPrivateKeyError.invalid }
+            plaintext = decrypted
+        } else {
+            plaintext = privateBlob
+        }
+        var privateReader = Reader(plaintext)
         let check = try privateReader.u32()
-        guard try privateReader.u32() == check,
-              try privateReader.string(maximum: 64) == Data("ssh-ed25519".utf8) else {
+        guard try privateReader.u32() == check else {
+            throw encrypted ? OpenSSHPrivateKeyError.wrongPassphrase : OpenSSHPrivateKeyError.invalid
+        }
+        guard try privateReader.string(maximum: 64) == Data("ssh-ed25519".utf8) else {
             throw OpenSSHPrivateKeyError.invalid
         }
         let innerPublic = try privateReader.string(maximum: 32)
@@ -93,7 +130,7 @@ enum OpenSSHPrivateKey {
         guard let key = try? Curve25519.Signing.PrivateKey(rawRepresentation: seed),
               key.publicKey.rawRepresentation == outerPublic else { throw OpenSSHPrivateKeyError.invalid }
         let padding = privateReader.remaining
-        guard (1...8).contains(padding) else { throw OpenSSHPrivateKeyError.invalid }
+        guard (1...blockSize).contains(padding) else { throw OpenSSHPrivateKeyError.invalid }
         for index in 1...padding {
             guard try privateReader.byte() == UInt8(index) else { throw OpenSSHPrivateKeyError.invalid }
         }

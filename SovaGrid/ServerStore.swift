@@ -111,14 +111,12 @@ final class ServerStore: ObservableObject {
     }
 
     private func privateKeyData(_ imported: Data?) throws -> Data {
-        if let imported {
-            guard imported.count == 32,
-                  (try? Curve25519.Signing.PrivateKey(rawRepresentation: imported)) != nil else {
-                throw ServerStoreError.invalidPrivateKey
-            }
-            return imported
+        guard let imported else { throw ServerStoreError.missingPrivateKey }
+        guard imported.count == 32,
+              (try? Curve25519.Signing.PrivateKey(rawRepresentation: imported)) != nil else {
+            throw ServerStoreError.invalidPrivateKey
         }
-        return Curve25519.Signing.PrivateKey().rawRepresentation
+        return imported
     }
 }
 
@@ -127,6 +125,7 @@ enum ServerStoreError: LocalizedError {
     case emptyPassword
     case invalidJumpAddress
     case emptyJumpPassword
+    case missingPrivateKey
     case invalidPrivateKey
 
     var errorDescription: String? {
@@ -135,6 +134,7 @@ enum ServerStoreError: LocalizedError {
         case .emptyPassword: return "Введите SSH-пароль."
         case .invalidJumpAddress: return "Для промежуточного SSH-сервера укажите адрес, пользователя и порт от 1 до 65535."
         case .emptyJumpPassword: return "Введите SSH-пароль промежуточного сервера."
+        case .missingPrivateKey: return "Создайте или выберите SSH-ключ до сохранения профиля."
         case .invalidPrivateKey: return "Импортированный ключ Ed25519 повреждён. Выберите файл снова."
         }
     }

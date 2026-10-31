@@ -119,6 +119,8 @@ struct AddServerView: View {
                             }
                             if let id = targetSavedKeyID, let publicKey = keys.publicKey(for: id) {
                                 SSHPublicKeyView(publicKey: publicKey)
+                                Text("Добавьте этот открытый ключ на сервер для пользователя, указанного выше, затем сохраните профиль.")
+                                    .font(.footnote).foregroundStyle(.secondary)
                             }
                             NavigationLink("Создать SSH-ключ") { SSHKeysView() }
                         }
@@ -133,8 +135,8 @@ struct AddServerView: View {
                             }
                         }
                         if targetKeySource == .generated {
-                            Button("Создать ключ") { createKey(forJump: false) }
-                            Text("Создайте ключ, чтобы сразу скопировать его открытую часть. При сохранении без этой кнопки будет создан отдельный ключ профиля.")
+                            Button("Создать ключ и показать открытый ключ") { createKey(forJump: false) }
+                            Text("Сначала создайте ключ. Его открытую часть можно будет скопировать и добавить на сервер до сохранения профиля.")
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else if targetKeySource == .imported {
                             Text("Выберите существующий ключ OpenSSH Ed25519 без парольной фразы. Его открытый ключ должен быть уже разрешён на сервере.")
@@ -166,6 +168,8 @@ struct AddServerView: View {
                                 }
                                 if let id = jumpSavedKeyID, let publicKey = keys.publicKey(for: id) {
                                     SSHPublicKeyView(publicKey: publicKey)
+                                    Text("Добавьте этот открытый ключ на промежуточный сервер для пользователя перехода, затем сохраните профиль.")
+                                        .font(.footnote).foregroundStyle(.secondary)
                                 }
                                 NavigationLink("Создать SSH-ключ перехода") { SSHKeysView() }
                             }
@@ -180,8 +184,8 @@ struct AddServerView: View {
                                 }
                             }
                             if jumpKeySource == .generated {
-                                Button("Создать ключ перехода") { createKey(forJump: true) }
-                                Text("Создайте ключ, чтобы скопировать открытую часть для промежуточного сервера.")
+                                Button("Создать ключ перехода и показать открытый ключ") { createKey(forJump: true) }
+                                Text("Сначала создайте ключ перехода. Его открытую часть можно будет добавить на промежуточный сервер до сохранения профиля.")
                                     .font(.footnote).foregroundStyle(.secondary)
                             } else if jumpKeySource == .imported {
                                 Text("Выберите ключ OpenSSH Ed25519 без парольной фразы, разрешённый на промежуточном сервере.")
@@ -235,6 +239,14 @@ struct AddServerView: View {
     }
 
     private func save() {
+        if auth == .ed25519 && targetKeySource == .generated {
+            error = "Сначала нажмите «Создать ключ и показать открытый ключ», добавьте его на сервер и затем сохраните профиль."
+            return
+        }
+        if viaJump && jumpAuth == .ed25519 && jumpKeySource == .generated {
+            error = "Сначала создайте ключ перехода, добавьте его на промежуточный сервер и затем сохраните профиль."
+            return
+        }
         if viaJump && jumpHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             error = ServerStoreError.invalidJumpAddress.localizedDescription
             return

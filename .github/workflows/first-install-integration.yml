@@ -28,8 +28,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Confirm the tested installer is the reviewed 0.10.0 source
-        run: test "$(git hash-object SovaGrid/ServerBootstrap.swift)" = 7c99ab8a6077e3da5f173afff3e014cbf75dc98e
+      - name: Confirm the tested installer is the reviewed 0.11.0 source
+        run: test "$(git hash-object SovaGrid/ServerBootstrap.swift)" = 8cfe43cf33cb18b94f963043424f9b4ce88756df
       - name: Compile and export exact Apple SSH commands
         run: |
           umask 077

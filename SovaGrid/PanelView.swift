@@ -50,7 +50,7 @@ struct PanelView: View {
                     Button("Открыть Starter") {
                         tunnel.deploymentNotice = nil
                         stopPanel()
-                        if let url = URL(string: "https://github.com/sovagrid/sovagrid-blueprint/releases/tag/v0.10.0-preview") {
+                        if let url = URL(string: "https://github.com/sovagrid/sovagrid-blueprint/releases/tag/server-v0.11.0") {
                             openURL(url)
                         }
                     }

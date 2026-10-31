@@ -88,7 +88,7 @@ struct SSHKeyDetailView: View {
                 }
             }
             Section {
-                Text("Вставьте открытый ключ в настройки SSH на сервере. Затем выберите этот ключ в профиле подключения: «Ключ Ed25519 → Мои ключи».")
+                Text("Затем выберите этот ключ в профиле подключения: «Ключ Ed25519 → Мои ключи».")
                     .font(.footnote).foregroundStyle(.secondary)
                 Text("Приватный ключ хранится в защищённом хранилище этого устройства и не копируется этой кнопкой.")
                     .font(.footnote).foregroundStyle(.secondary)
@@ -101,6 +101,7 @@ struct SSHKeyDetailView: View {
 struct SSHPublicKeyView: View {
     let publicKey: String
     @State private var copied = false
+    @State private var commandCopied = false
 
     var body: some View {
         Text(publicKey).font(.system(.footnote, design: .monospaced))
@@ -114,6 +115,23 @@ struct SSHPublicKeyView: View {
             NSPasteboard.general.setString(publicKey, forType: .string)
             #endif
             copied = true
+        }
+        Text("В панели хостинга откройте раздел SSH-ключей и вставьте туда открытый ключ. Если добавляете его через терминал сервера, войдите под нужным SSH-пользователем и выполните команду ниже.")
+            .font(.footnote).foregroundStyle(.secondary)
+        if let command = SSHAuthorizedKeyInstall.command(for: publicKey) {
+            Button(commandCopied ? "Команда для сервера скопирована" : "Скопировать команду для сервера") {
+                #if os(iOS)
+                UIPasteboard.general.string = command
+                #elseif os(macOS)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(command, forType: .string)
+                #endif
+                commandCopied = true
+            }
+            DisclosureGroup("Посмотреть команду") {
+                Text(command).font(.system(.footnote, design: .monospaced))
+                    .textSelection(.enabled)
+            }
         }
     }
 }

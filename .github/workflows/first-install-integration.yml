@@ -1,15 +1,8 @@
 name: Apple first install on GitHub-hosted Ubuntu
 
 # Root installation is exercised only on a disposable GitHub-hosted VM after
-# push or explicit dispatch. Pull requests receive the ordinary build checks.
+# explicit dispatch. Routine source pushes do not spend two CI jobs.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'SovaGrid/ServerBootstrap.swift'
-      - 'tests/ExportFirstInstallCommands.swift'
-      - 'ci/verify_first_install.py'
-      - '.github/workflows/first-install-integration.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,8 +21,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Confirm the tested installer is the reviewed 0.11.0 source
-        run: test "$(git hash-object SovaGrid/ServerBootstrap.swift)" = 8cfe43cf33cb18b94f963043424f9b4ce88756df
+      - name: Confirm the tested installer is the reviewed 0.14.0 source
+        run: test "$(git hash-object SovaGrid/ServerBootstrap.swift)" = 27bd1521d0b947327a692f044ba1ed2730892de6
       - name: Compile and export exact Apple SSH commands
         run: |
           umask 077

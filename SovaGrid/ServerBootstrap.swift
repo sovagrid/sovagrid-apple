@@ -18,9 +18,9 @@ struct FirstInstallJob {
 
 /// Fixed systemd job survives an app background transition. All status reads are read-only.
 enum SovaGridFirstInstall {
-    static let version = "0.14.1"
-    static let sourceSHA256 = "c5786bb64467063196046144e665a98e347f40713facb37809b65a03eb70f347"
-    static let manifestSHA256 = "ec6f567b0292916dd3f104f1441451708a955b79d02ef91f82237a8cf8603f1f"
+    static let version = "1.0.0"
+    static let sourceSHA256 = "3bf84864d79bfcc64cbbc56d37815d5fc172d27d6bca9e5db780606a9aea9a7a"
+    static let manifestSHA256 = "94c0405382866d24f8b685a7df09c962a4e5f32cf2b5c9dd7b41f3644ea0cfbd"
     static let maximumOutputBytes = 160
     private static let stages: Set<String> = ["START", "DOWNLOAD", "VERIFY", "EXTRACT", "RUN", "CHECK"]
     private static let reasons: Set<String> = ["ROOT", "UBUNTU", "EXISTING", "UNKNOWN", "DOWNLOAD", "DOWNLOAD_TOOL", "HASH", "ARCHIVE", "LAYOUT", "STAGE", "RUN", "RESULT", "INTERRUPTED"]
@@ -95,9 +95,9 @@ enum SovaGridFirstInstall {
         stage_dir=$(mktemp -d /opt/.sovagrid-mobile-stage.XXXXXXXX) || { rm -f -- "$archive"; refuse STAGE; }
         cleanup() { rm -f -- "$archive"; if [[ -d $stage_dir ]]; then rm -rf -- "$stage_dir"; fi; }
         trap 'cleanup || true; finish_status' EXIT
-        url='https://github.com/sovagrid/sovagrid-blueprint/releases/download/server-v0.14.1/SovaGrid-server-source.tar.gz'
-        expected='c5786bb64467063196046144e665a98e347f40713facb37809b65a03eb70f347'
-        manifest='ec6f567b0292916dd3f104f1441451708a955b79d02ef91f82237a8cf8603f1f'
+        url='https://github.com/sovagrid/sovagrid-blueprint/releases/download/server-v1.0.0/SovaGrid-server-source.tar.gz'
+        expected='3bf84864d79bfcc64cbbc56d37815d5fc172d27d6bca9e5db780606a9aea9a7a'
+        manifest='94c0405382866d24f8b685a7df09c962a4e5f32cf2b5c9dd7b41f3644ea0cfbd'
         status_stage DOWNLOAD
         if command -v curl >/dev/null 2>&1; then
           curl --fail --location --silent --show-error --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --max-filesize 67108864 --output "$archive" "$url" >/dev/null 2>&1 || refuse DOWNLOAD
@@ -107,7 +107,7 @@ enum SovaGridFirstInstall {
           python3 - "$archive" <<'PY' >/dev/null 2>&1 || refuse DOWNLOAD
         import sys
         import urllib.request
-        url = 'https://github.com/sovagrid/sovagrid-blueprint/releases/download/server-v0.14.1/SovaGrid-server-source.tar.gz'
+        url = 'https://github.com/sovagrid/sovagrid-blueprint/releases/download/server-v1.0.0/SovaGrid-server-source.tar.gz'
         with urllib.request.urlopen(url, timeout=30) as source, open(sys.argv[1], 'wb') as target:
             if not source.url.startswith('https://'):
                 raise SystemExit(1)

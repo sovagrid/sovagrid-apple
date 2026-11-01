@@ -142,8 +142,16 @@ def verify_sftp_download(folder, simulator):
 def main():
     sftp_only = "--sftp-only" in sys.argv[1:]
     panel_only = "--panel-only" in sys.argv[1:]
+    files_only = "--files-only" in sys.argv[1:]
+    restore_only = "--restore-only" in sys.argv[1:]
+    if sum((sftp_only, panel_only, files_only, restore_only)) > 1:
+        raise ValueError("Choose only one focused --*-only mode")
+    prebuilt_app = Path(sys.argv[sys.argv.index("--app") + 1]).resolve() if "--app" in sys.argv else None
+    log_root = Path(sys.argv[sys.argv.index("--log-root") + 1]).resolve() if "--log-root" in sys.argv else None
+    if log_root:
+        log_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     user = pwd.getpwuid(os.getuid()).pw_name
-    folder = Path(tempfile.mkdtemp(prefix="sovagrid-panel-routes-"))
+    folder = Path(tempfile.mkdtemp(prefix="sovagrid-panel-routes-", dir=log_root))
     simulator = None
     entry = target = web = blackhole = None
     handles = []
@@ -160,15 +168,18 @@ def main():
         simulator = subprocess.check_output([
             "xcrun", "simctl", "create", "SovaGrid panel route fixture",
             device_type, runtime], text=True).strip()
+        (folder / "simulator.json").write_text(json.dumps({"id": simulator, "runtime": runtime}) + "\n")
+        print(f"Fixture Simulator: {simulator}; logs: {folder}", flush=True)
         run("xcrun", "simctl", "boot", simulator)
         run("xcrun", "simctl", "bootstatus", simulator, "-b", log=folder / "boot.log")
 
-        run("xcodebuild", "build", "-project", str(ROOT / "SovaGrid.xcodeproj"),
-            "-scheme", "SovaGrid", "-configuration", "Debug",
-            "-destination", f"platform=iOS Simulator,id={simulator}",
-            "-derivedDataPath", str(folder / "app-build"),
-            "CODE_SIGNING_ALLOWED=YES", "CODE_SIGN_IDENTITY=-", log=folder / "app-build.log")
-        app = folder / "app-build/Build/Products/Debug-iphonesimulator/SovaGrid.app"
+        if prebuilt_app is None:
+            run("xcodebuild", "build", "-project", str(ROOT / "SovaGrid.xcodeproj"),
+                "-scheme", "SovaGrid", "-configuration", "Debug",
+                "-destination", f"platform=iOS Simulator,id={simulator}",
+                "-derivedDataPath", str(folder / "app-build"),
+                "CODE_SIGNING_ALLOWED=YES", "CODE_SIGN_IDENTITY=-", log=folder / "app-build.log")
+        app = prebuilt_app or folder / "app-build/Build/Products/Debug-iphonesimulator/SovaGrid.app"
         run("xcrun", "simctl", "install", simulator, str(app))
 
         project = folder / "Smoke.xcodeproj"
@@ -196,7 +207,9 @@ def main():
         (custom_panel / "manifest.webmanifest").write_text(json.dumps({"name": "SovaGrid panel fixture"}))
         web_log = (folder / "web.log").open("w")
         handles.append(web_log)
-        web = subprocess.Popen([sys.executable, str(HERE / "panel_http_fixture.py"),
+        fixture = ("panel_restore_http_fixture.py" if restore_only else
+                   "panel_files_http_fixture.py" if files_only else "panel_http_fixture.py")
+        web = subprocess.Popen([sys.executable, str(HERE / fixture),
                                 str(folder), str(PANEL_PORT)],
                                stdout=web_log, stderr=subprocess.STDOUT)
         time.sleep(0.5)
@@ -221,6 +234,34 @@ def main():
             if not match:
                 raise RuntimeError(f"App public key for {name} missing; see test01 log in {folder}")
             (folder / f"{name}-authorized").write_text(match.group(1) + "\n")
+
+        if restore_only:
+            test_case(project, folder, simulator, "test09NativePanelLargeRestore")
+            from panel_restore_http_fixture import PAYLOAD
+            with urllib.request.urlopen(f"http://127.0.0.1:{PANEL_PORT}/_fixture/results", timeout=5) as response:
+                result = json.load(response)
+            (folder / "restore-result.json").write_text(json.dumps(result, indent=2) + "\n")
+            if result.get("seed_downloads") != 1 or not result.get("restore"):
+                raise RuntimeError("Native restore fixture did not confirm one seed and the exact bounded restore proof")
+            groups = Path.home() / "Library/Developer/CoreSimulator/Devices" / simulator / "data/Containers/Shared/AppGroup"
+            if not any(item.is_file() and item.read_bytes() == PAYLOAD for item in groups.rglob("panel-restore.bin")):
+                raise RuntimeError("System Files did not contain an exact saved panel-restore.bin")
+            print("Native iPhone restore: real 8MiB+23 picker, 33 bounded native reads, exact slice hashes and release passed.", flush=True)
+            return
+
+        if files_only:
+            test_case(project, folder, simulator, "test08NativePanelFileRoundTrip")
+            from panel_files_http_fixture import PAYLOAD, BLOB_PAYLOAD
+            with urllib.request.urlopen(f"http://127.0.0.1:{PANEL_PORT}/_fixture/results", timeout=5) as response:
+                result = json.load(response)
+            if result.get("authenticated_downloads") != 1 or not result.get("upload"):
+                raise RuntimeError("Native file fixture did not confirm authenticated download/upload")
+            groups = Path.home() / "Library/Developer/CoreSimulator/Devices" / simulator / "data/Containers/Shared/AppGroup"
+            for name, expected in (("panel-native.bin", PAYLOAD), ("panel-blob.bin", BLOB_PAYLOAD)):
+                if not any(item.is_file() and item.read_bytes() == expected for item in groups.rglob(name)):
+                    raise RuntimeError(f"System Files did not contain an exact saved {name}")
+            print("Native iPhone panel: authenticated HTTP + Blob downloads and upload round-trip passed.", flush=True)
+            return
 
         if sftp_only:
             (folder / "remote-files").mkdir()
@@ -290,10 +331,12 @@ def main():
         for handle in handles:
             handle.close()
         if simulator:
-            subprocess.run(["xcrun", "simctl", "shutdown", simulator],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            subprocess.run(["xcrun", "simctl", "delete", simulator],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            shutdown = subprocess.run(["xcrun", "simctl", "shutdown", simulator],
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            deleted = subprocess.run(["xcrun", "simctl", "delete", simulator],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            (folder / "simulator-cleanup.json").write_text(json.dumps({"id": simulator,
+                "shutdown_exit": shutdown.returncode, "delete_exit": deleted.returncode}) + "\n")
         for generated in ("app-build", "test-build"):
             shutil.rmtree(folder / generated, ignore_errors=True)
         for name in ("entry-host", "target-host", "entry-authorized", "target-authorized"):

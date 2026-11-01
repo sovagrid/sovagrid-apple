@@ -61,6 +61,18 @@ def health() -> None:
             "Managed install marker missing")
     require(sudo_shell("systemctl is-active --quiet sovagrid-agent.service").returncode == 0,
             "Agent service inactive")
+    # Check usable capabilities, not just a running Hub after phone install.
+    capabilities = sudo_shell(
+        "python3 -I -c 'import json; "
+        "v=json.load(open(\"/etc/sovagrid/agent.json\")); "
+        "assert v.get(\"allow_remote_commands\") is True; "
+        "assert v.get(\"allow_interactive_terminal\") is True; "
+        "assert v.get(\"allow_file_manager\") is True'")
+    require(capabilities.returncode == 0, "Phone install left terminal or files disabled")
+    for unit in ("sovagrid-terminal-control.socket", "sovagrid-vpn-control.socket",
+                 "sovagrid-container-inventory.timer"):
+        require(sudo_shell("systemctl is-active --quiet " + unit).returncode == 0,
+                "Phone install left a requested capability inactive")
     hub = sudo_shell("docker compose --env-file /etc/sovagrid/deploy.env "
                      "-f /opt/sovagrid-src/sovagrid-blueprint/deploy/compose.yaml "
                      "ps --status running --quiet hub")

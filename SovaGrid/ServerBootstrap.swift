@@ -18,7 +18,7 @@ struct FirstInstallJob {
 
 /// Fixed systemd job survives an app background transition. All status reads are read-only.
 enum SovaGridFirstInstall {
-    static let version = "0.14.0"
+    static let version = "0.14.1"
     static let sourceSHA256 = "c5786bb64467063196046144e665a98e347f40713facb37809b65a03eb70f347"
     static let manifestSHA256 = "ec6f567b0292916dd3f104f1441451708a955b79d02ef91f82237a8cf8603f1f"
     static let maximumOutputBytes = 160
@@ -53,10 +53,11 @@ enum SovaGridFirstInstall {
           fi
         }
         check_empty() {
-          [[ $(id -u) == 0 ]] || refuse ROOT
+          [[ $(/usr/bin/id -u) == 0 ]] || refuse ROOT
           [[ -r /etc/os-release ]] || refuse UBUNTU
           . /etc/os-release
           [[ ${ID:-} == ubuntu ]] || refuse UBUNTU
+          [[ ${VERSION_ID:-} == 22.04 || ${VERSION_ID:-} == 24.04 || ${VERSION_ID:-} == 26.04 ]] || refuse UBUNTU
           for path in /opt/sovagrid-src /opt/sovagrid-agent /opt/sovagrid-vpn /opt/sovagrid-agent-installer /etc/sovagrid /etc/sovagrid-hub /etc/sovagrid-agent-tunnel /etc/sovagrid-agent-tunnel-public /var/lib/sovagrid /var/lib/sovagrid-agent /var/lib/sovagrid-agent-enrollment /var/lib/sovagrid-hub-tunnels; do
             [[ ! -e $path && ! -L $path ]] || refuse EXISTING
           done
@@ -75,6 +76,16 @@ enum SovaGridFirstInstall {
         [[ ! -L /run/sovagrid-first-install.lock ]] || exit 32
         exec 9>/run/sovagrid-first-install.lock
         flock -n 9 || exit 33
+        installation_lock=/run/sovagrid-installation.lock
+        [[ ! -L $installation_lock ]] || refuse UNKNOWN
+        if [[ ! -e $installation_lock ]]; then
+          ( set -o noclobber; : > "$installation_lock" ) 2>/dev/null || refuse UNKNOWN
+        fi
+        [[ -f $installation_lock && $(stat -c '%u:%g:%a:%h' "$installation_lock") == 0:0:600:1 ]] || refuse UNKNOWN
+        exec 6>>"$installation_lock"
+        [[ $(stat -Lc '%d:%i' /proc/self/fd/6) == "$(stat -c '%d:%i' "$installation_lock")" ]] || refuse UNKNOWN
+        flock -n 6 || refuse EXISTING
+        [[ ! -e /var/lib/.sovagrid-host-restore-in-progress && ! -L /var/lib/.sovagrid-host-restore-in-progress ]] || refuse EXISTING
         check_empty
         [[ ! -e $job_dir && ! -L $job_dir ]] || exit 34
         mkdir -m 0700 -- "$job_dir" || exit 35
@@ -133,7 +144,7 @@ enum SovaGridFirstInstall {
         check_empty
         mv -T -- "$stage_dir" /opt/sovagrid-src || refuse STAGE
         status_stage RUN
-        bash /opt/sovagrid-src/sovagrid-blueprint/run.sh > "$job_dir/install.log" 2>&1 || refuse RUN
+        SOVAGRID_INSTALLATION_LOCK_FD=6 bash /opt/sovagrid-src/sovagrid-blueprint/run.sh --with-terminal --with-files --with-wireguard --with-containers > "$job_dir/install.log" 2>&1 || refuse RUN
         status_stage CHECK
         [[ -f /var/lib/sovagrid/.managed-by-run-sh && ! -L /var/lib/sovagrid/.managed-by-run-sh ]] || refuse RESULT
         [[ $(sha256sum /opt/sovagrid-src/sovagrid-bundle.json | cut -d' ' -f1) == "$manifest" ]] || refuse HASH
@@ -188,15 +199,21 @@ enum SovaGridFirstInstall {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    static let startCommand: String = """
-        if [ "$(id -u)" != 0 ]; then exit 1; fi; \
+    private static let startScript: String = """
+        if [ "$(/usr/bin/id -u)" != 0 ]; then exit 1; fi; \
         if [ -e /var/lib/sovagrid-first-install ] || [ -L /var/lib/sovagrid-first-install ]; then exit 2; fi; \
         systemd-run --quiet --collect --unit=sovagrid-first-install --property=Type=exec --property=RuntimeMaxSec=2700 --property=StandardOutput=null --property=StandardError=null /bin/bash -c \(shellQuote(jobScript)) >/dev/null 2>&1 || exit 3; \
         printf 'SG_INSTALL_START_V1:OK\\n'
         """
+    static let startCommand: String = """
+        set -- /bin/sh -c \(shellQuote(startScript)); \
+        if [ "$(/usr/bin/id -u)" = 0 ]; then exec "$@"; \
+        elif [ -x /usr/bin/sudo ]; then exec /usr/bin/sudo -n -- "$@"; \
+        else exit 1; fi
+        """
     static let statusCommand: String = """
-        if [ "$(id -u)" = 0 ]; then /bin/sh -c \(shellQuote(statusScript)); \
-        elif command -v sudo >/dev/null 2>&1; then sudo -n /bin/sh -c \(shellQuote(statusScript)) 2>/dev/null || printf 'SG_INSTALL_JOB_V1:unknown\\n'; \
+        if [ "$(/usr/bin/id -u)" = 0 ]; then /bin/sh -c \(shellQuote(statusScript)); \
+        elif [ -x /usr/bin/sudo ]; then /usr/bin/sudo -n /bin/sh -c \(shellQuote(statusScript)) 2>/dev/null || printf 'SG_INSTALL_JOB_V1:unknown\\n'; \
         else printf 'SG_INSTALL_JOB_V1:unknown\\n'; fi
         """
 
@@ -245,8 +262,8 @@ enum SovaGridFirstInstall {
 
     static func failureText(_ reason: String) -> String {
         switch reason {
-        case "ROOT": return "Для первой установки нужен вход root по SSH."
-        case "UBUNTU": return "Первая установка поддерживает Ubuntu."
+        case "ROOT": return "Для первой установки нужны root или права sudo без запроса пароля. Пароль SSH не заменяет разрешение sudo."
+        case "UBUNTU": return "Для первой установки нужна Ubuntu 22.04, 24.04 или 26.04 с systemd."
         case "EXISTING": return "На сервере уже есть SovaGrid или заняты его служебные пути."
         case "DOWNLOAD", "DOWNLOAD_TOOL": return "Сервер не смог загрузить пакет. Проверьте доступ к GitHub."
         case "HASH": return "Пакет или манифест не совпали с проверенным SHA-256."

@@ -87,9 +87,9 @@ struct PanelView: View {
         switch state {
         case .missing:
             if tunnel.canInstallHub {
-                return "Установить SovaGrid \(SovaGridFirstInstall.version) на выбранный Ubuntu-сервер? Сервер загрузит официальный пакет, сверит SHA-256 и повторно проверит, что SovaGrid ещё не установлен. Затем настроит Docker, локальные Hub и Agent. После проверки панель откроется здесь."
+                return "Установить SovaGrid \(SovaGridFirstInstall.version) на выбранный Ubuntu-сервер? Сервер загрузит официальный пакет, сверит SHA-256 и повторно проверит, что SovaGrid ещё не установлен. Затем настроит Docker, локальные Hub и Agent, терминал, файлы, мониторинг контейнеров и управление WireGuard. VPN-интерфейс включается отдельно в панели. После проверки панель откроется здесь."
             }
-            return "Для первой установки нужен вход root по SSH. На компьютере можно использовать SovaGrid Starter."
+            return "Для первой установки нужны root или права sudo без запроса пароля. Пароль SSH не заменяет разрешение sudo. На компьютере также можно использовать SovaGrid Starter."
         case .agentOnly:
             return "Здесь работает только Agent. Полная установка поверх него могла бы затронуть туннель и ключи. Для другого сервера выберите Hub на промежуточном узле; перенос на самостоятельный Hub будет отдельной безопасной операцией."
         case .conflict:
@@ -312,6 +312,15 @@ private struct LocalPanelWebView {
         configuration.userContentController.add(
             ProfileScriptMessageProxy(coordinator: coordinator), name: "sovagridNativeProfile"
         )
+        configuration.userContentController.add(
+            ProfileScriptMessageProxy(coordinator: coordinator), name: "sovagridNativeFiles"
+        )
+        configuration.userContentController.add(
+            ProfileScriptMessageProxy(coordinator: coordinator), name: "sovagridRestoreChannel"
+        )
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: PanelFileTransferScript.source, injectionTime: .atDocumentStart, forMainFrameOnly: true
+        ))
         let webView = WKWebView(frame: .zero, configuration: configuration)
         coordinator.bind(webView)
         webView.navigationDelegate = coordinator
@@ -355,9 +364,15 @@ private final class ProfileScriptMessageProxy: NSObject, WKScriptMessageHandler 
 
     func userContentController(_ userContentController: WKUserContentController,
                                didReceive message: WKScriptMessage) {
-        coordinator?.receiveProfile(message)
+        if message.name == "sovagridNativeFiles" { coordinator?.receiveFile(message) }
+        else if message.name == "sovagridRestoreChannel" { coordinator?.receiveRestore(message) }
+        else { coordinator?.receiveProfile(message) }
     }
 }
+
+#if os(iOS)
+private final class RestoreDocumentPicker: UIDocumentPickerViewController {}
+#endif
 
 private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
     let origin: URL
@@ -369,12 +384,27 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
     private var invalidated = false
     private var nativeGrantAttempted = false
     private var acceptedMainFrameURL: URL?
+    private var download: PanelDownloadSession?
+    private var downloadPromptId: String?
+    private var uploadCompletion: (([URL]?) -> Void)?
+    private var uploadedFiles: [PanelUploadFile] = []
+    private var restoreSession = UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+    private var restorePending: PanelRestoreMessage?
+    private var restoreFiles: PanelRestoreFiles?
+    private var restoreOpening: PanelRestoreFiles?
+    private var restoreReadId: String?
 #if os(iOS)
     private var temporaryProfileDirectory: URL?
     private weak var activityController: UIActivityViewController?
+    private weak var downloadPrompt: UIAlertController?
+    private weak var uploadPicker: UIDocumentPickerViewController?
+    private weak var downloadPicker: UIDocumentPickerViewController?
+    private weak var restorePicker: RestoreDocumentPicker?
 #elseif os(macOS)
     private var savePanel: NSSavePanel?
     private var pendingProfile: ProfileExportPayload?
+    private var uploadPanel: NSOpenPanel?
+    private var restorePanel: NSOpenPanel?
 #endif
 
     init(origin: URL, onPolicyFailure: @escaping () -> Void, onReady: @escaping (WKWebView) -> Void,
@@ -393,6 +423,7 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
     }
 
     deinit {
+        restoreFiles?.close(); restoreOpening?.close()
         NotificationCenter.default.removeObserver(self)
 #if os(iOS)
         removeTemporaryProfile()
@@ -411,16 +442,153 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
         activeWebView = nil
         webView.stopLoading()
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "sovagridNativeProfile")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "sovagridNativeFiles")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "sovagridRestoreChannel")
+        closeRestoreAccess()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
+        downloadPromptId = nil
+        download?.discard(); download = nil
+        uploadCompletion?(nil); uploadCompletion = nil
+        uploadedFiles.removeAll()
 #if os(iOS)
+        downloadPrompt?.dismiss(animated: false)
+        uploadPicker?.dismiss(animated: false)
+        downloadPicker?.dismiss(animated: false)
         activityController?.dismiss(animated: false)
         removeTemporaryProfile()
 #elseif os(macOS)
         savePanel?.cancel(nil)
         savePanel = nil
         pendingProfile = nil
+        uploadPanel?.cancel(nil); uploadPanel = nil
 #endif
+    }
+
+    private func closeRestoreAccess() {
+        restorePending = nil
+        restoreReadId = nil
+        restoreFiles?.close(); restoreFiles = nil
+        restoreOpening?.close(); restoreOpening = nil
+#if os(iOS)
+        let picker = restorePicker; restorePicker = nil
+        picker?.dismiss(animated: false)
+#elseif os(macOS)
+        let panel = restorePanel; restorePanel = nil
+        panel?.cancel(nil)
+#endif
+    }
+
+    private func replyRestore(_ request: PanelRestoreMessage, result: [String: Any], webView: WKWebView) {
+        guard isActive(webView), request.session == restoreSession, allowed(webView.url),
+              let body = PanelRestoreContract.replyJSON(result) else { return }
+        webView.evaluateJavaScript("globalThis.__sovagridRestoreReply?.(\"\(request.session)\",\"\(request.id)\",\(body));",
+                                  completionHandler: nil)
+    }
+
+    func receiveRestore(_ message: WKScriptMessage) {
+        guard message.name == "sovagridRestoreChannel", let webView = message.webView,
+              isActive(webView), webView.window != nil, message.frameInfo.isMainFrame,
+              allowed(message.frameInfo.request.url), allowed(webView.url) else { return }
+        let source = message.frameInfo.securityOrigin
+        guard source.protocol == "http", source.host == "127.0.0.1", source.port == origin.port,
+              let request = PanelRestoreMessage.parse(message.body), request.session == restoreSession else { return }
+        switch request.action {
+        case "release":
+            closeRestoreAccess()
+            replyRestore(request, result: ["ok": true], webView: webView)
+        case "pick":
+            guard restorePending == nil, restoreOpening == nil, uploadCompletion == nil,
+                  download == nil, downloadPromptId == nil else {
+                replyRestore(request, result: ["ok": false, "error": "Сначала завершите текущий выбор или передачу файла."], webView: webView)
+                return
+            }
+            closeRestoreAccess()
+            restorePending = request
+#if os(iOS)
+            guard let presenter = webView.window?.rootViewController,
+                  presenter.presentedViewController == nil else {
+                restorePending = nil
+                replyRestore(request, result: ["ok": false, "error": "Закройте другое окно и повторите выбор файлов."], webView: webView)
+                return
+            }
+            let picker = RestoreDocumentPicker(forOpeningContentTypes: [.data], asCopy: false)
+            picker.allowsMultipleSelection = true
+            picker.delegate = self
+            restorePicker = picker
+            presenter.present(picker, animated: true)
+#elseif os(macOS)
+            guard let window = webView.window, savePanel == nil, uploadPanel == nil else {
+                restorePending = nil
+                replyRestore(request, result: ["ok": false, "error": "Закройте другое окно и повторите выбор файлов."], webView: webView)
+                return
+            }
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = false; panel.canChooseFiles = true; panel.allowsMultipleSelection = true
+            panel.message = "Выберите до пяти файлов копии: до 8 ГБ каждый, до 16 ГБ всего. Они читаются по частям."
+            restorePanel = panel
+            panel.beginSheetModal(for: window) { [weak self, weak webView] response in
+                guard let self, let webView, self.restorePanel === panel,
+                      self.restorePending?.id == request.id, request.session == self.restoreSession else { return }
+                self.restorePanel = nil
+                if response == .OK { self.finishRestoreSelection(panel.urls, request: request, webView: webView) }
+                else {
+                    self.restorePending = nil
+                    self.replyRestore(request, result: ["ok": false, "error": "Выбор файлов отменён."], webView: webView)
+                }
+            }
+#endif
+        case "read":
+            guard let files = restoreFiles, let handle = request.handle,
+                  let offset = request.offset, let length = request.length, restoreReadId == nil else {
+                replyRestore(request, result: ["ok": false, "error": "Выбор закрыт или предыдущее чтение ещё не завершено."], webView: webView)
+                return
+            }
+            restoreReadId = request.id
+            DispatchQueue.global(qos: .userInitiated).async { [weak self, weak webView] in
+                let data = try? files.read(handle: handle, offset: offset, length: length)
+                let encoded = data?.base64EncodedString()
+                DispatchQueue.main.async {
+                    guard let self, let webView else { return }
+                    if self.restoreReadId == request.id { self.restoreReadId = nil }
+                    guard self.restoreFiles === files, request.session == self.restoreSession else { return }
+                    if let encoded { self.replyRestore(request, result: ["ok": true, "data": encoded], webView: webView) }
+                    else {
+                        files.close(); self.restoreFiles = nil
+                        self.replyRestore(request, result: ["ok": false, "error": "Файл изменился или недоступен. Скопируйте его на устройство и выберите снова."], webView: webView)
+                    }
+                }
+            }
+        default: break
+        }
+    }
+
+    private func finishRestoreSelection(_ urls: [URL], request: PanelRestoreMessage, webView: WKWebView) {
+        guard restorePending?.id == request.id, request.session == restoreSession, isActive(webView) else { return }
+        restorePending = nil
+        guard (1...5).contains(urls.count) else {
+            replyRestore(request, result: ["ok": false, "error": PanelRestoreContract.copyMessage], webView: webView)
+            return
+        }
+        let files = PanelRestoreFiles()
+        restoreOpening = files
+        DispatchQueue.global(qos: .userInitiated).async { [weak self, weak webView] in
+            let selected: [[String: Any]]?
+            do { selected = try urls.map { try files.add($0) } }
+            catch { files.close(); selected = nil }
+            DispatchQueue.main.async {
+                guard let self, let webView else { files.close(); return }
+                guard self.restoreOpening === files, request.session == self.restoreSession,
+                      self.isActive(webView), webView.window != nil else { files.close(); return }
+                self.restoreOpening = nil
+                if let selected {
+                    self.restoreFiles?.close(); self.restoreFiles = files
+                    self.replyRestore(request, result: ["ok": true, "files": selected], webView: webView)
+                } else {
+                    self.replyRestore(request, result: ["ok": false, "error": PanelRestoreContract.copyMessage], webView: webView)
+                }
+            }
+        }
     }
 
     private func allowed(_ candidate: URL?) -> Bool {
@@ -435,6 +603,10 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard isActive(webView), let current = webView.url,
               acceptedMainFrameURL == current else { return }
+        if allowed(current), let port = origin.port {
+            webView.evaluateJavaScript(PanelRestoreScript.source(session: restoreSession,
+                origin: "http://127.0.0.1:\(port)"), completionHandler: nil)
+        }
         if current == origin {
             if !nativeGrantAttempted {
                 nativeGrantAttempted = true
@@ -450,6 +622,8 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        closeRestoreAccess()
+        restoreSession = UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
         acceptedMainFrameURL = nil
     }
 
@@ -464,6 +638,7 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
         let source = message.frameInfo.securityOrigin
         guard source.protocol == "http", source.host == "127.0.0.1",
               source.port == origin.port,
+              download == nil, downloadPromptId == nil,
               let profile = ProfileExportPayload.parse(message.body) else { return }
 #if os(iOS)
         shareProfile(profile, from: webView)
@@ -472,8 +647,138 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
 #endif
     }
 
+    func receiveFile(_ message: WKScriptMessage) {
+        guard message.name == "sovagridNativeFiles", let webView = message.webView,
+              isActive(webView), webView.window != nil, message.frameInfo.isMainFrame,
+              allowed(message.frameInfo.request.url), allowed(webView.url) else { return }
+        let source = message.frameInfo.securityOrigin
+        guard source.protocol == "http", source.host == "127.0.0.1", source.port == origin.port,
+              let request = PanelDownloadMessage.parse(message.body) else { return }
+        if request.operation == "cancel", downloadPromptId == request.id {
+            downloadPromptId = nil
+#if os(iOS)
+            downloadPrompt?.dismiss(animated: false)
+#endif
+            return
+        }
+        if request.operation == "start" {
+            guard download == nil, downloadPromptId == nil, uploadCompletion == nil,
+                  restorePending == nil, restoreOpening == nil else {
+                replyFile(request, accepted: false, webView: webView); return
+            }
+#if os(iOS)
+            guard activityController == nil else { replyFile(request, accepted: false, webView: webView); return }
+#elseif os(macOS)
+            guard savePanel == nil else { replyFile(request, accepted: false, webView: webView); return }
+#endif
+            confirmDownload(request, webView: webView)
+            return
+        }
+        guard let download, download.id == request.id else {
+            replyFile(request, accepted: false, webView: webView); return
+        }
+        if request.operation == "cancel" {
+            download.discard(); self.download = nil
+            showFileError(webView: webView)
+            return
+        }
+        do {
+            try download.accept(request)
+            replyFile(request, accepted: true, webView: webView)
+            if download.complete { exportDownload(download, webView: webView) }
+        } catch {
+            download.discard(); self.download = nil
+            replyFile(request, accepted: false, webView: webView)
+            showFileError(webView: webView)
+        }
+    }
+
+    private func replyFile(_ request: PanelDownloadMessage, accepted: Bool, webView: WKWebView) {
+        // Both identifiers have already passed the fixed grammar in the parser.
+        guard isActive(webView) else { return }
+        webView.evaluateJavaScript("globalThis.__sovagridFileReply?.('\(request.id)', '\(request.step)', \(accepted ? "true" : "false"));", completionHandler: nil)
+    }
+
+    private func confirmDownload(_ request: PanelDownloadMessage, webView: WKWebView) {
+        guard let filename = request.filename else { return }
+        downloadPromptId = request.id
+        let decision: (Bool) -> Void = { [weak self, weak webView] accepted in
+            guard let self, let webView, self.isActive(webView), self.downloadPromptId == request.id else { return }
+            self.downloadPromptId = nil
+            guard accepted else { self.replyFile(request, accepted: false, webView: webView); return }
+            do {
+                self.download = try PanelDownloadSession(id: request.id, filename: filename)
+                self.replyFile(request, accepted: true, webView: webView)
+            } catch {
+                self.replyFile(request, accepted: false, webView: webView)
+                self.showFileError(webView: webView)
+            }
+        }
+        let explanation = "\(filename)\n\nФайл может содержать пароли и ключи сервера. Он будет загружен через текущий SSH-туннель, затем вы выберете, куда сохранить его. До 32 ГБ; на устройстве нужно свободное место для временной копии."
+#if os(iOS)
+        guard let presenter = webView.window?.rootViewController else { decision(false); return }
+        let alert = UIAlertController(title: "Скачать файл?", message: explanation, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Отмена", style: .cancel) { _ in decision(false) })
+        alert.addAction(UIAlertAction(title: "Скачать", style: .default) { _ in decision(true) })
+        downloadPrompt = alert
+        presenter.present(alert, animated: true)
+#elseif os(macOS)
+        guard let window = webView.window else { decision(false); return }
+        let alert = NSAlert(); alert.messageText = "Скачать файл?"; alert.informativeText = explanation
+        alert.addButton(withTitle: "Скачать"); alert.addButton(withTitle: "Отмена")
+        alert.beginSheetModal(for: window) { decision($0 == .alertFirstButtonReturn) }
+#endif
+    }
+
+    private func exportDownload(_ session: PanelDownloadSession, webView: WKWebView) {
+#if os(iOS)
+        guard let presenter = webView.window?.rootViewController else { download = nil; return }
+        let picker = UIDocumentPickerViewController(forExporting: [session.file], asCopy: true)
+        picker.delegate = self
+        downloadPicker = picker
+        presenter.present(picker, animated: true)
+#elseif os(macOS)
+        guard let window = webView.window else { download = nil; return }
+        let panel = NSSavePanel(); panel.nameFieldStringValue = session.filename; panel.canCreateDirectories = true
+        savePanel = panel
+        panel.beginSheetModal(for: window) { [weak self, weak session] response in
+            guard let self, let session, self.download === session else { return }
+            defer { self.savePanel = nil; self.download = nil }
+            guard response == .OK, let destination = panel.url else { return }
+            let temporary = destination.deletingLastPathComponent().appendingPathComponent(".sovagrid-" + UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: temporary) }
+            do {
+                try FileManager.default.copyItem(at: session.file, to: temporary)
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
+                guard Darwin.rename(temporary.path, destination.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
+            } catch { self.showFileError(webView: webView) }
+        }
+#endif
+    }
+
+    private func showFileError(webView: WKWebView) {
+#if os(iOS)
+        guard let presenter = webView.window?.rootViewController else { return }
+        let alert = UIAlertController(title: "Файл не сохранён", message: "Передача прервалась, файл превышает 32 ГБ или на устройстве недостаточно места. Временная копия удалена. Повторите скачивание из панели.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "ОК", style: .default)); presenter.present(alert, animated: true)
+#elseif os(macOS)
+        guard let window = webView.window else { return }
+        let alert = NSAlert(); alert.messageText = "Файл не сохранён"
+        alert.informativeText = "Проверьте свободное место и повторите скачивание из панели. Временная копия удалена."
+        alert.beginSheetModal(for: window, completionHandler: nil)
+#endif
+    }
+
 #if os(iOS)
     @objc private func cleanupForBackground() {
+        closeRestoreAccess()
+        downloadPromptId = nil
+        downloadPrompt?.dismiss(animated: false)
+        download?.discard(); download = nil
+        uploadCompletion?(nil); uploadCompletion = nil
+        uploadedFiles.removeAll()
+        uploadPicker?.dismiss(animated: false)
+        downloadPicker?.dismiss(animated: false)
         activityController?.dismiss(animated: false)
         removeTemporaryProfile()
     }
@@ -623,7 +928,98 @@ private final class LocalPanelCoordinator: NSObject, WKNavigationDelegate, WKUID
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         nil
     }
+
+    @available(iOS 18.4, macOS 10.12, *)
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        guard isActive(webView), webView.window != nil, frame.isMainFrame,
+              allowed(frame.request.url), allowed(webView.url), uploadCompletion == nil,
+              download == nil, downloadPromptId == nil, uploadedFiles.count < 16,
+              restorePending == nil, restoreOpening == nil,
+              frame.securityOrigin.protocol == "http", frame.securityOrigin.host == "127.0.0.1",
+              frame.securityOrigin.port == origin.port else { completionHandler(nil); return }
+        uploadCompletion = completionHandler
+#if os(iOS)
+        guard let presenter = webView.window?.rootViewController else { finishUpload(nil, webView: webView); return }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: false)
+        picker.allowsMultipleSelection = false
+        picker.delegate = self
+        uploadPicker = picker
+        presenter.present(picker, animated: true)
+#elseif os(macOS)
+        guard let window = webView.window else { finishUpload(nil, webView: webView); return }
+        let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+        panel.message = "Выберите один файл до 4 МБ. Он будет передан только текущей панели через SSH."
+        uploadPanel = panel
+        panel.beginSheetModal(for: window) { [weak self, weak webView] response in
+            guard let self, let webView else { return }
+            self.uploadPanel = nil
+            self.finishUpload(response == .OK ? panel.url : nil, webView: webView)
+        }
+#endif
+    }
+
+    private func finishUpload(_ url: URL?, webView: WKWebView) {
+        guard let completion = uploadCompletion else { return }
+        uploadCompletion = nil
+        guard let url, isActive(webView), webView.window != nil else { completion(nil); return }
+        do {
+            let snapshot = try PanelUploadFile(source: url)
+            uploadedFiles.append(snapshot)
+            completion([snapshot.file])
+        } catch {
+            completion(nil)
+#if os(iOS)
+            guard let presenter = webView.window?.rootViewController else { return }
+            let alert = UIAlertController(title: "Файл не выбран", message: "Выберите один обычный файл размером до 4 МБ.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "ОК", style: .default)); presenter.present(alert, animated: true)
+#elseif os(macOS)
+            guard let window = webView.window else { return }
+            let alert = NSAlert(); alert.messageText = "Файл не выбран"; alert.informativeText = "Выберите один обычный файл размером до 4 МБ."
+            alert.beginSheetModal(for: window, completionHandler: nil)
+#endif
+        }
+    }
 }
+
+#if os(iOS)
+extension LocalPanelCoordinator: UIDocumentPickerDelegate {
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        if controller is RestoreDocumentPicker {
+            guard controller === restorePicker, let request = restorePending,
+                  let webView = activeWebView else { return }
+            restorePicker = nil
+            finishRestoreSelection(urls, request: request, webView: webView)
+            return
+        }
+        if controller === downloadPicker {
+            downloadPicker = nil
+            download = nil
+            return
+        }
+        uploadPicker = nil
+        guard let webView = activeWebView else { uploadCompletion?(nil); uploadCompletion = nil; return }
+        finishUpload(urls.count == 1 ? urls.first : nil, webView: webView)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        if controller is RestoreDocumentPicker {
+            guard controller === restorePicker, let request = restorePending,
+                  let webView = activeWebView else { return }
+            restorePicker = nil; restorePending = nil
+            replyRestore(request, result: ["ok": false, "error": "Выбор файлов отменён."], webView: webView)
+            return
+        }
+        if controller === downloadPicker {
+            downloadPicker = nil
+            download = nil
+            return
+        }
+        uploadPicker = nil
+        uploadCompletion?(nil); uploadCompletion = nil
+    }
+}
+#endif
 
 #if os(iOS)
 extension LocalPanelWebView: UIViewRepresentable {

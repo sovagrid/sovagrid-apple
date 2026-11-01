@@ -7,7 +7,9 @@ import Foundation
 @main
 enum BootstrapPasswordTests {
     static func main() {
-        precondition(BootstrapPassword.command == "/usr/bin/cat -- /etc/sovagrid/admin-password")
+        precondition(BootstrapPassword.command.contains("/usr/bin/cat -- /etc/sovagrid/admin-password"))
+        precondition(BootstrapPassword.command.contains("/usr/bin/sudo -n -- /usr/bin/cat -- /etc/sovagrid/admin-password"))
+        precondition(!BootstrapPassword.command.contains("sudo -S"))
         let sample = String(repeating: "aB3_-", count: 9)
         precondition(BootstrapPassword.parse(Array((sample + "\n").utf8)) == sample)
         precondition(BootstrapPassword.parse(Array(sample.utf8)) == sample)

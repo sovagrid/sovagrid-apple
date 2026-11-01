@@ -21,8 +21,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Confirm the tested installer is the reviewed 0.14.0 source
-        run: test "$(git hash-object SovaGrid/ServerBootstrap.swift)" = 27bd1521d0b947327a692f044ba1ed2730892de6
+      - name: Confirm the tested installer is the reviewed native source
+        run: test "$(git hash-object SovaGrid/ServerBootstrap.swift)" = 3b0ab9e2f28f71f8a7e5ebca1348f0404da48330
       - name: Compile and export exact Apple SSH commands
         run: |
           umask 077
@@ -32,7 +32,7 @@ jobs:
             -o "$RUNNER_TEMP/sovagrid-apple-ci/parser-tests"
           "$RUNNER_TEMP/sovagrid-apple-ci/parser-tests"
           swiftc -module-cache-path "$RUNNER_TEMP/sovagrid-apple-ci/module-cache" \
-            SovaGrid/ServerBootstrap.swift tests/ExportFirstInstallCommands.swift \
+            SovaGrid/ServerBootstrap.swift SovaGrid/ServerDeployment.swift SovaGrid/BootstrapPassword.swift tests/ExportFirstInstallCommands.swift \
             -o "$RUNNER_TEMP/sovagrid-apple-ci/export"
           "$RUNNER_TEMP/sovagrid-apple-ci/export" "$RUNNER_TEMP/sovagrid-apple-ci/commands"
       - uses: actions/upload-artifact@v4

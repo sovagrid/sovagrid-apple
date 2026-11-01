@@ -62,9 +62,9 @@ enum ServerDeploymentProbe {
 
     static let command: String = {
         let quoted = "'" + script.replacingOccurrences(of: "'", with: "'\\''") + "'"
-        return "if [ \"$(id -u)\" = 0 ]; then /bin/sh -c \(quoted); " +
-            "elif command -v sudo >/dev/null 2>&1; then " +
-            "sudo -n /bin/sh -c \(quoted) 2>/dev/null || printf 'SG_STATUS_V1:unknown\\n'; " +
+        return "if [ \"$(/usr/bin/id -u)\" = 0 ]; then /bin/sh -c \(quoted); " +
+            "elif [ -x /usr/bin/sudo ]; then " +
+            "/usr/bin/sudo -n /bin/sh -c \(quoted) 2>/dev/null || printf 'SG_STATUS_V1:unknown\\n'; " +
             "else printf 'SG_STATUS_V1:unknown\\n'; fi"
     }()
 }
@@ -74,10 +74,10 @@ enum SSHGrantResponse {
     static let maximumOutputBytes = 512
 
     static let command = """
-        if [ "$(id -u)" = 0 ]; then
+        if [ "$(/usr/bin/id -u)" = 0 ]; then
           docker compose --env-file /etc/sovagrid/deploy.env -f /opt/sovagrid-src/sovagrid-blueprint/deploy/compose.yaml run --rm --no-deps -T --entrypoint python3 hub -m sovagrid_hub --db /data/hub.sqlite ssh-grant
-        elif command -v sudo >/dev/null 2>&1; then
-          sudo -n docker compose --env-file /etc/sovagrid/deploy.env -f /opt/sovagrid-src/sovagrid-blueprint/deploy/compose.yaml run --rm --no-deps -T --entrypoint python3 hub -m sovagrid_hub --db /data/hub.sqlite ssh-grant
+        elif [ -x /usr/bin/sudo ]; then
+          /usr/bin/sudo -n docker compose --env-file /etc/sovagrid/deploy.env -f /opt/sovagrid-src/sovagrid-blueprint/deploy/compose.yaml run --rm --no-deps -T --entrypoint python3 hub -m sovagrid_hub --db /data/hub.sqlite ssh-grant
         else exit 1; fi
         """
 

@@ -33,7 +33,11 @@ final class SmokeTests: XCTestCase {
             targetUser.typeText(fixtureUser + "\n")
             app.buttons["Способ, Пароль"].tap()
             app.buttons["Ключ Ed25519"].tap()
+            let createTargetKey = app.buttons["Создать ключ и показать открытый ключ"]
+            reveal(createTargetKey, in: app)
+            createTargetKey.tap()
             let jumpSwitch = app.switches["Подключаться через SSH"]
+            reveal(jumpSwitch, in: app)
             jumpSwitch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
             XCTAssertEqual(jumpSwitch.value as? String, "1", app.debugDescription)
             let jumpAddress = app.textFields["Адрес перехода"]
@@ -50,6 +54,9 @@ final class SmokeTests: XCTestCase {
             jumpUser.typeText(fixtureUser + "\n")
             app.buttons["Вход на переходе, Пароль"].tap()
             app.buttons["Ключ Ed25519"].tap()
+            let createJumpKey = app.buttons["Создать ключ перехода и показать открытый ключ"]
+            reveal(createJumpKey, in: app)
+            createJumpKey.tap()
             app.buttons["Сохранить"].tap()
         }
         let server = app.staticTexts[profileName]
@@ -144,6 +151,7 @@ final class SmokeTests: XCTestCase {
         user.typeText(fixtureUser + "\n")
         app.buttons["Способ, Пароль"].tap()
         app.buttons["Ключ Ed25519"].tap()
+        app.buttons["Создать ключ и показать открытый ключ"].tap()
         app.buttons["Сохранить"].tap()
 
         let panel = app.buttons["Панель"]
@@ -272,6 +280,105 @@ final class SmokeTests: XCTestCase {
         print("SOVAGRID_MISSING_KEY_IMPORT_FAILS_CLOSED")
     }
 
+    func test08NativePanelFileRoundTrip() {
+        let app = XCUIApplication(bundleIdentifier: bundle)
+        app.launch()
+        app.buttons["Панель"].tap()
+        let entry = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", fixtureUser + "@127.0.0.1:22221")).firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 15), app.debugDescription)
+        entry.tap()
+        let challenge = app.alerts["Новый ключ сервера"]
+        if challenge.waitForExistence(timeout: 5) { challenge.buttons["Доверять"].tap() }
+        let page = app.webViews.firstMatch
+        XCTAssertTrue(page.staticTexts["LOCAL PANEL FIXTURE"].waitForExistence(timeout: 35), app.debugDescription)
+        for label in ["Download private HTTP", "Download binary Blob"] {
+            let control = page.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
+            XCTAssertTrue(control.waitForExistence(timeout: 10), app.debugDescription)
+            control.tap()
+            let confirm = app.alerts["Скачать файл?"]
+            XCTAssertTrue(confirm.waitForExistence(timeout: 10), app.debugDescription)
+            confirm.buttons["Скачать"].tap()
+            let save = app.buttons["Save"]
+            XCTAssertTrue(save.waitForExistence(timeout: 30), app.debugDescription)
+            print("SOVAGRID_NATIVE_SAVE_PICKER=\(app.debugDescription)")
+            if !save.isEnabled {
+                let onPhone = app.staticTexts["On My iPhone"]
+                if onPhone.exists { onPhone.tap() }
+            }
+            XCTAssertTrue(save.isEnabled, app.debugDescription)
+            save.tap()
+            let dismissalDeadline = Date().addingTimeInterval(20)
+            while save.exists && Date() < dismissalDeadline { Thread.sleep(forTimeInterval: 0.2) }
+            XCTAssertFalse(save.exists, app.debugDescription)
+            XCTAssertTrue(page.staticTexts["LOCAL PANEL FIXTURE"].waitForExistence(timeout: 15), app.debugDescription)
+        }
+        let chooser = page.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Choose downloaded file")).firstMatch
+        XCTAssertTrue(chooser.exists, app.debugDescription)
+        chooser.tap()
+        var selected = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "panel-native")).firstMatch
+        if !selected.waitForExistence(timeout: 10) {
+            let search = app.searchFields.firstMatch
+            if search.exists { search.tap(); search.typeText("panel-native") }
+            selected = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "panel-native")).firstMatch
+        }
+        XCTAssertTrue(selected.waitForExistence(timeout: 15), app.debugDescription)
+        selected.tap()
+        XCTAssertTrue(page.staticTexts["UPLOAD_OK 200006"].waitForExistence(timeout: 20), app.debugDescription)
+        app.buttons["Отключить"].tap()
+        print("SOVAGRID_NATIVE_FILE_ROUNDTRIP_PASSED")
+    }
+
+    func test09NativePanelLargeRestore() {
+        let app = XCUIApplication(bundleIdentifier: bundle)
+        app.launch()
+        app.buttons["Панель"].tap()
+        let entry = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", fixtureUser + "@127.0.0.1:22221")).firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 15), app.debugDescription)
+        entry.tap()
+        let challenge = app.alerts["Новый ключ сервера"]
+        if challenge.waitForExistence(timeout: 5) { challenge.buttons["Доверять"].tap() }
+        let page = app.webViews.firstMatch
+        XCTAssertTrue(page.staticTexts["NATIVE RESTORE FIXTURE"].waitForExistence(timeout: 35), app.debugDescription)
+        XCTAssertTrue(page.staticTexts["NATIVE_RESTORE_READY"].waitForExistence(timeout: 15), app.debugDescription)
+        let seed = page.links["Download restore seed"]
+        XCTAssertTrue(seed.waitForExistence(timeout: 10), app.debugDescription)
+        seed.tap()
+        let confirm = app.alerts["Скачать файл?"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 10), app.debugDescription)
+        confirm.buttons["Скачать"].tap()
+        let save = app.buttons["Save"]
+        XCTAssertTrue(save.waitForExistence(timeout: 30), app.debugDescription)
+        if !save.isEnabled {
+            let onPhone = app.staticTexts["On My iPhone"]
+            if onPhone.exists { onPhone.tap() }
+        }
+        XCTAssertTrue(save.isEnabled, app.debugDescription)
+        save.tap()
+        let dismissalDeadline = Date().addingTimeInterval(20)
+        while save.exists && Date() < dismissalDeadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertFalse(save.exists, app.debugDescription)
+        let picker = page.buttons["Choose backup files"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 15), app.debugDescription)
+        picker.tap()
+        var selected = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "panel-restore")).firstMatch
+        if !selected.waitForExistence(timeout: 10) {
+            let search = app.searchFields.firstMatch
+            if search.exists { search.tap(); search.typeText("panel-restore") }
+            selected = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "panel-restore")).firstMatch
+        }
+        XCTAssertTrue(selected.waitForExistence(timeout: 15), app.debugDescription)
+        selected.tap()
+        let open = app.buttons["Open"]
+        if open.waitForExistence(timeout: 3) && open.isEnabled { open.tap() }
+        XCTAssertTrue(page.staticTexts["RESTORE_OK"].waitForExistence(timeout: 60), app.debugDescription)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "native-large-restore-proof"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["Отключить"].tap()
+        print("SOVAGRID_NATIVE_LARGE_RESTORE_PASSED")
+    }
+
     private func verifyPanel(_ app: XCUIApplication, expectedAddress: String, expectedPassword: String) {
         let ready = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Панель через SSH:")).firstMatch
         let error = app.alerts["Ошибка SSH-панели"]
@@ -295,7 +402,7 @@ final class SmokeTests: XCTestCase {
 
     private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         for _ in 0..<4 {
-            if element.isHittable { return }
+            if element.exists && element.isHittable { return }
             app.swipeUp()
         }
         XCTAssertTrue(element.isHittable, app.debugDescription)

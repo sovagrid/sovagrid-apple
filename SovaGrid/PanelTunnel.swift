@@ -393,7 +393,6 @@ final class PanelTunnel: ObservableObject {
     private var installLaunchPending = false
     private var installLaunchRetries = 0
     private var installOrigin: SocketAddress?
-    private var installRootEligible = false
     private var nativeGrantChannel: Channel?
     private var nativeGrantPending = false
     private var nativeGrantIssued = false
@@ -443,7 +442,6 @@ final class PanelTunnel: ObservableObject {
         let entryHost = profile.jump?.host ?? profile.host
         let entryPort = profile.jump?.port ?? profile.port
         let entryUsername = profile.jump?.username ?? profile.username
-        installRootEligible = (endpoint.usesNestedSSH(for: profile) ? profile.username : entryUsername) == "root"
         let entryAuthKind = profile.jump?.auth ?? profile.auth
         let entryCredentials: ClientAuthDelegate
         let targetCredentials: ClientAuthDelegate?
@@ -795,7 +793,8 @@ final class PanelTunnel: ObservableObject {
             canUseSSHLogin = false
             probePanelPort(using: ssh, transport: transport, origin: origin,
                            group: eventLoopGroup, connectionID: connectionID)
-        case .missing where installRootEligible && installStatusSafe:
+        // A missing deployment is reported only by a successful root/sudo-n probe.
+        case .missing where installStatusSafe:
             installOrigin = origin
             canInstallHub = true
             deploymentNotice = .missing
@@ -809,7 +808,7 @@ final class PanelTunnel: ObservableObject {
 
     /// Starts one detached systemd job after explicit confirmation. SSH loss only stops observation.
     func installHub() {
-        guard canInstallHub, installRootEligible, installStatusSafe, !installBusy,
+        guard canInstallHub, installStatusSafe, !installBusy,
               let destinationSSH, let destinationTransport, let installOrigin,
               let connectionID, let eventLoopGroup = group else { return }
         canInstallHub = false
@@ -1094,7 +1093,6 @@ final class PanelTunnel: ObservableObject {
         installLaunchPending = false
         installLaunchRetries = 0
         installOrigin = nil
-        installRootEligible = false
         canInstallHub = false
         installBusy = false
         nativeGrantChannel = nil

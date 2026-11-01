@@ -13,9 +13,7 @@ struct SovaGridApp: App {
 
     init() {
         SFTPTemporaryFiles.removeStaleAtLaunch()
-#if os(iOS)
         ProfileExportTemporaryFiles.removeStaleAtLaunch()
-#endif
     }
 
     var body: some Scene {

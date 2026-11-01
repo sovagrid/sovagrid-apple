@@ -10,10 +10,15 @@ enum ServerBootstrapTests {
         let start = SovaGridFirstInstall.startCommand
         let status = SovaGridFirstInstall.statusCommand
         precondition(start.contains("systemd-run --quiet --collect --unit=sovagrid-first-install"))
-        precondition(start.contains("server-v0.14.1/SovaGrid-server-source.tar.gz"))
+        precondition(start.hasPrefix("set -- /bin/sh -c '"))
+        precondition(start.contains("exec /usr/bin/sudo -n -- \"$@\""))
+        precondition(!start.contains("sudo -S"))
+        precondition(status.contains("/usr/bin/sudo -n /bin/sh -c"))
+        precondition(start.contains("server-v\(SovaGridFirstInstall.version)/SovaGrid-server-source.tar.gz"))
         precondition(start.contains(SovaGridFirstInstall.sourceSHA256))
         precondition(start.contains(SovaGridFirstInstall.manifestSHA256))
         precondition(start.contains("/run/sovagrid-first-install.lock"))
+        precondition(start.contains("/run/sovagrid-installation.lock"))
         precondition(start.contains("head -c 67108865"))
         precondition(status.contains("/var/lib/sovagrid-first-install"))
         for (shell, command) in [("/bin/bash", start), ("/bin/sh", status)] {
